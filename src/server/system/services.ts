@@ -52,6 +52,44 @@ export interface VolumeServices {
   make_default(sink: string): Promise<void>;
 }
 
+// ── Input ────────────────────────────────────────────────────────────────────
+
+// Keys a device can press by name, as X11 names them; anything else is typed as text.
+export const special_keys = ["BackSpace", "Tab", "Return", "Left", "Up", "Right", "Down", "Prior", "Next", "Home", "End", "Delete", "Escape", "Sys_Req", "Scroll_Lock", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"] as const;
+
+export type SpecialKey = (typeof special_keys)[number];
+
+export type Modifier = "ctrl" | "alt" | "shift" | "super";
+
+export type MouseButton = "left" | "middle" | "right";
+
+// The pointer and keyboard of the computer, driven by a device used as its touchpad and keyboard.
+export interface InputServices {
+  move(dx: number, dy: number): Promise<void>;
+  // "double" clicks twice; "press" and "release" hold the button and let it go, for dragging.
+  click(button: MouseButton, how: "click" | "double" | "press" | "release"): Promise<void>;
+  scroll(dx: number, dy: number): Promise<void>;
+  key(key: SpecialKey | string, modifiers: Modifier[]): Promise<void>;
+  type(text: string): Promise<void>;
+}
+
+// ── Files ────────────────────────────────────────────────────────────────────
+
+// Where a phone serves its files over SFTP; the password is one the phone made for this time only.
+export interface SftpShare {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  path: string;
+}
+
+export interface MountServices {
+  // Mounts the share on the folder given, which is made first.
+  mount(share: SftpShare, folder: string): Promise<void>;
+  unmount(folder: string): Promise<void>;
+}
+
 // ── Computer ─────────────────────────────────────────────────────────────────
 
 export interface BatteryReading {
@@ -74,6 +112,8 @@ export interface SystemServices {
   };
   media: MediaServices;
   volume: VolumeServices;
+  input: InputServices;
+  files: MountServices;
   // Runs a command line the user wrote, as their own shell would.
   run_shell(command: string): Promise<{ exit_code: number; output: string }>;
   // Opens a link or a file in the program the desktop picks.

@@ -52,6 +52,20 @@ export const mpris_manifest = bundled("mpris", "Media players", "Control this co
 
 export const systemvolume_manifest = bundled("systemvolume", "System volume", "Control this computer's speakers from a device, and a device's from here.");
 
+export const contacts_manifest = bundled("contacts", "Contacts", "Read a phone's contacts, so messages and calls show names.");
+
+export const sms_manifest = bundled("sms", "Messages", "Read and send a phone's text messages from here.");
+
+export const sftp_manifest = bundled("sftp", "Browse files", "Open a phone's files in this computer's file manager, over SFTP.");
+
+export const mousepad_manifest = bundled("mousepad", "Remote input", "Use a device as this computer's touchpad and keyboard, and type on a device from here.", [
+  { key: "pointer_speed", label: "Pointer speed", hint: "How far the pointer moves for a stroke on the device's touchpad.", type: "number", default: 1 },
+]);
+
+export const presenter_manifest = bundled("presenter", "Presenter", "Use a phone as a remote and pointer for slides.", [
+  { key: "pointer_speed", label: "Pointer speed", hint: "How far the pointer moves as the phone turns.", type: "number", default: 1000 },
+]);
+
 export const bundled_manifests: PluginManifest[] = [
   ping_manifest,
   battery_manifest,
@@ -65,4 +79,9 @@ export const bundled_manifests: PluginManifest[] = [
   lock_manifest,
   mpris_manifest,
   systemvolume_manifest,
+  contacts_manifest,
+  sms_manifest,
+  sftp_manifest,
+  mousepad_manifest,
+  presenter_manifest,
 ];

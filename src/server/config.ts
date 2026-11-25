@@ -15,6 +15,7 @@ export interface ServerConfig {
   backups_folder: string;
   identity_file: string;
   downloads_folder: string;
+  mounts_folder: string;
   plugins_folder: string;
   device_name: string | null;
   device_type: DeviceType;
@@ -30,11 +31,12 @@ interface RawConfig {
   backups_folder?: unknown;
   identity_file?: unknown;
   downloads_folder?: unknown;
+  mounts_folder?: unknown;
   plugins_folder?: unknown;
   device_name?: unknown;
   device_type?: unknown;
   system?: unknown;
-  kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown };
+  kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown; mdns?: unknown };
   notify_channels?: unknown;
 }
 
@@ -59,12 +61,14 @@ export function read_config(raw: RawConfig): ServerConfig {
     backups_folder: path_or(raw.backups_folder, join(data_folder, "backups")),
     identity_file: path_or(raw.identity_file, join(data_folder, "identity.json")),
     downloads_folder: path_or(raw.downloads_folder, join(data_folder, "received")),
+    mounts_folder: path_or(raw.mounts_folder, join(data_folder, "mounts")),
     plugins_folder: path_or(raw.plugins_folder, join(data_folder, "plugins")),
     device_name: typeof raw.device_name === "string" && raw.device_name ? raw.device_name : null,
     device_type: raw.device_type === "laptop" || raw.device_type === "phone" || raw.device_type === "tablet" || raw.device_type === "tv" ? raw.device_type : "desktop",
     system: raw.system === "sample" ? "sample" : "linux",
     network: {
       discovery: network.discovery !== false,
+      mdns: network.mdns !== false,
       listen_port: optional_port(network.listen_port),
       announce_port: optional_port(network.announce_port),
       tcp_ports: port_range(network.tcp_ports),

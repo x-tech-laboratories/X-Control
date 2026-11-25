@@ -127,6 +127,7 @@ const control = await start_control({
   database: () => database,
   identity_file: join(profile, "identity.json"),
   downloads_folder: default_downloads_folder(homedir(), profile),
+  mounts_folder: join(process.env.XDG_RUNTIME_DIR || profile, "x-control", "mounts"),
   system: linux_services(),
   notify: (notice) => void notifier.show({ title: notice.title, body: notice.body, urgency: notice.urgency ?? "normal", key: notice.key, icon: "app", url: notice.route ? app_link(notice.route) : null }),
   withdraw: (key) => void notifier.dismiss({ key }),

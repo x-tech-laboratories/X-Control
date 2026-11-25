@@ -18,19 +18,25 @@ import { settings_feature } from "../shared/settings.ts";
 import { create_device_manager, type DeviceManager } from "./kdeconnect/devices.ts";
 import { fingerprint_of, load_identity, save_identity, type DeviceIdentity } from "./kdeconnect/identity.ts";
 import { create_lan_backend, type LanBackend, type LanOptions } from "./kdeconnect/lan.ts";
+import { start_mdns, type MdnsDiscovery } from "./kdeconnect/mdns.ts";
 import type { ControlPlugin, ControlPluginApi } from "./plugins/api.ts";
 import { bundled_plugins } from "./plugins/bundled.ts";
 import type { SystemServices } from "./system/services.ts";
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
-export type NetworkOptions = Pick<LanOptions, "discovery" | "listen_port" | "announce_port" | "tcp_ports" | "payload_ports" | "allow_loopback" | "broadcast_addresses">;
+export type NetworkOptions = Pick<LanOptions, "discovery" | "listen_port" | "announce_port" | "tcp_ports" | "payload_ports" | "allow_loopback" | "broadcast_addresses"> & {
+  // Advertise and find devices over mDNS as well as by broadcast; on wherever discovery is.
+  mdns?: boolean;
+};
 
 export interface ControlOptions {
   database: () => SqlDatabase;
   // The file this device's identity and certificate are kept in.
   identity_file: string;
   downloads_folder: string;
+  // Where phones' files are mounted while they are browsed.
+  mounts_folder: string;
   system: SystemServices;
   // Shows a notice the user turned on, on the desktop or through the server's channels.
   notify: (notice: Notice) => void;
@@ -90,6 +96,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
       notify,
       withdraw: options.withdraw,
       downloads_folder: () => options.downloads_folder,
+      mounts_folder: () => options.mounts_folder,
       devices: () => devices.list(),
       commands: () => commands_feature.methods.list_commands(options.database()),
       log,
@@ -124,6 +131,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
   await plugins.start();
   plugins.watch.subscribe(options.on_change);
   await network.start();
+  const mdns: MdnsDiscovery | null = options.network?.discovery !== false && options.network?.mdns !== false ? start_mdns({ identity: () => identity, announce: (address) => network.announce(address), on_warning: log }) : null;
   log(`X-Control is ${identity.name} (${identity.device_id}) on TCP port ${network.tcp_port()}`);
 
   // Records changed on another page or device: each plugin is turned on or off and given its settings to match.
@@ -170,6 +178,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     },
     async stop() {
       devices.stop();
+      await mdns?.stop();
       await network.stop();
       await plugins.stop();
     },

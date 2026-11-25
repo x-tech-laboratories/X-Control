@@ -75,6 +75,17 @@ export function sample_computer(): SampleComputer {
         for (const sink of state.sinks) sink.is_default = sink.name === name;
       },
     },
+    input: {
+      move: async (dx, dy) => void done.push(`move ${dx} ${dy}`),
+      click: async (button, how) => void done.push(`click ${button} ${how}`),
+      scroll: async (dx, dy) => void done.push(`scroll ${dx} ${dy}`),
+      key: async (key, modifiers) => void done.push(`key ${[...modifiers, key].join("+")}`),
+      type: async (text) => void done.push(`type ${text}`),
+    },
+    files: {
+      mount: async (share, folder) => void done.push(`mount ${share.user}@${share.host}:${share.port}${share.path} on ${folder}`),
+      unmount: async (folder) => void done.push(`unmount ${folder}`),
+    },
     run_shell: async (command) => {
       done.push(`run ${command}`);
       return { exit_code: 0, output: "" };

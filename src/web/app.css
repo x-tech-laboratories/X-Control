@@ -85,3 +85,21 @@
 .monospace {
   font-family: var(--font-family-monospace);
 }
+
+.message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.message.sent {
+  text-align: end;
+}
+
+.message p {
+  margin: 0;
+}

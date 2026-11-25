@@ -3,12 +3,12 @@
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { not_installed_exit_code, run_program } from "@x-tech-laboratories/x-libs/agent/programs";
 
-import type { AudioSink, BatteryReading, MediaPlayer, SystemServices } from "./services.ts";
+import type { AudioSink, BatteryReading, InputServices, MediaPlayer, Modifier, MountServices, SystemServices } from "./services.ts";
 
 // ── Programs ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +94,83 @@ export function read_sinks(json: string, default_sink: string): AudioSink[] {
   }));
 }
 
+// ── Input ────────────────────────────────────────────────────────────────────
+
+const xdotool_buttons = { left: "1", middle: "2", right: "3" };
+
+// xdotool on X11, by key names and button numbers.
+function xdotool_input(): InputServices {
+  const run = async (...args: string[]): Promise<void> => void (await output_of(["xdotool", ...args]));
+  return {
+    move: (dx, dy) => run("mousemove_relative", "--", String(Math.round(dx)), String(Math.round(dy))),
+    click: (button, how) => {
+      const number = xdotool_buttons[button];
+      if (how === "press") return run("mousedown", number);
+      if (how === "release") return run("mouseup", number);
+      return how === "double" ? run("click", "--repeat", "2", number) : run("click", number);
+    },
+    scroll: async (dx, dy) => {
+      const vertical = Math.round(dy);
+      const horizontal = Math.round(dx);
+      if (vertical) await run("click", "--repeat", String(Math.abs(vertical)), vertical > 0 ? "5" : "4");
+      if (horizontal) await run("click", "--repeat", String(Math.abs(horizontal)), horizontal > 0 ? "7" : "6");
+    },
+    key: (key, modifiers) => run("key", "--clearmodifiers", [...modifiers, key].join("+")),
+    type: (text) => run("type", "--clearmodifiers", "--", text),
+  };
+}
+
+// Linux input key codes, which ydotool presses by number.
+export const key_codes: Record<string, number> = {
+  BackSpace: 14, Tab: 15, Return: 28, Left: 105, Up: 103, Right: 106, Down: 108, Prior: 104, Next: 109, Home: 102, End: 107,
+  Delete: 111, Escape: 1, Sys_Req: 99, Scroll_Lock: 70, F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64, F7: 65, F8: 66, F9: 67, F10: 68, F11: 87, F12: 88,
+  ctrl: 29, shift: 42, alt: 56, super: 125,
+};
+
+// ydotool's key presses for a key with its modifiers held: each pressed in order, then let go in reverse.
+export function ydotool_key_presses(key: string, modifiers: Modifier[]): string[] | null {
+  const codes = [...modifiers, key].map((name) => key_codes[name]);
+  if (codes.some((code) => code === undefined)) return null;
+  return [...codes.map((code) => `${code}:1`), ...[...codes].reverse().map((code) => `${code}:0`)];
+}
+
+const ydotool_buttons = { left: 0x00, right: 0x01, middle: 0x02 };
+
+// ydotool on Wayland, through its daemon; a key it has no code for is typed as text.
+function ydotool_input(): InputServices {
+  const run = async (...args: string[]): Promise<void> => void (await output_of(["ydotool", ...args]));
+  return {
+    move: (dx, dy) => run("mousemove", "-x", String(Math.round(dx)), "-y", String(Math.round(dy))),
+    click: (button, how) => {
+      const code = ydotool_buttons[button];
+      const flags = how === "press" ? 0x40 : how === "release" ? 0x80 : 0xc0;
+      return run("click", ...(how === "double" ? ["-r", "2"] : []), `0x${(code | flags).toString(16)}`);
+    },
+    scroll: (dx, dy) => run("mousemove", "-w", "-x", String(Math.round(dx)), "-y", String(-Math.round(dy))),
+    key: async (key, modifiers) => {
+      const presses = ydotool_key_presses(key, modifiers);
+      await (presses ? run("key", ...presses) : run("type", "--", key));
+    },
+    type: (text) => run("type", "--", text),
+  };
+}
+
+// ── Files ────────────────────────────────────────────────────────────────────
+
+// sshfs with the password handed over on stdin, so it never shows in the process list; the phone was already checked over TLS.
+function sshfs_mounts(): MountServices {
+  return {
+    mount: async (share, folder) => {
+      mkdirSync(folder, { recursive: true });
+      const options = ["password_stdin", "StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "HostKeyAlgorithms=+ssh-rsa", "reconnect", "ServerAliveInterval=15"];
+      await output_of(["sshfs", `${share.user}@${share.host}:${share.path}`, folder, "-p", String(share.port), "-o", options.join(",")], `${share.password}\n`);
+    },
+    unmount: async (folder) => {
+      await output_of(["fusermount3", "-u", folder]).catch(() => output_of(["fusermount", "-u", folder]));
+    },
+  };
+}
+
 // ── Services ─────────────────────────────────────────────────────────────────
 
 export function linux_services(): SystemServices {
@@ -141,6 +218,8 @@ export function linux_services(): SystemServices {
       set_muted: async (sink, muted) => void (await output_of(["pactl", "set-sink-mute", sink, muted ? "1" : "0"])),
       make_default: async (sink) => void (await output_of(["pactl", "set-default-sink", sink])),
     },
+    input: is_wayland() ? ydotool_input() : xdotool_input(),
+    files: sshfs_mounts(),
     run_shell: async (command) => {
       const result = await run_program(["sh", "-c", command], { stdout: "keep", stderr: "keep" });
       return { exit_code: result.exit_code, output: (result.stdout + result.stderr).trim() };

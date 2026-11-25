@@ -9,7 +9,7 @@ import type { Notice } from "../src/shared/notices.ts";
 import { bind_store_methods, open_store } from "../src/shared/store.ts";
 import { start_control, type Control } from "../src/server/control.ts";
 import { sample_computer, type SampleComputer } from "../src/server/system/sample.ts";
-import type { BatteryState, RemoteCommandState, ShareState } from "../src/shared/plugins/states.ts";
+import type { BatteryState, ContactsState, RemoteCommandState, SftpState, ShareState, SmsState } from "../src/shared/plugins/states.ts";
 
 // ── Setup ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,7 @@ async function make_side(name: string): Promise<Side> {
     database: () => database,
     identity_file: join(folder, "identity.json"),
     downloads_folder: join(folder, "Downloads"),
+    mounts_folder: join(folder, "mounts"),
     system: computer,
     notify: (notice) => notices.push(notice),
     withdraw: () => {},
@@ -206,5 +207,40 @@ describe("plugins between paired devices", () => {
     await expect(phone.control.methods.run_device_action(laptop_id, "ping.send", {})).rejects.toThrow("plugin may be off");
     void laptop;
     void phone_id;
+  });
+
+  test("a phone's contacts and messages show up, and a message goes out", async () => {
+    const { laptop, phone, phone_id, laptop_id } = await paired_pair();
+    const from_phone = phone.control.devices.handle(laptop_id, "test");
+    await from_phone.send("kdeconnect.contacts.response_uids_timestamps", { uids: ["u1"], u1: 1 });
+    await from_phone.send("kdeconnect.contacts.response_vcards", { uids: ["u1"], u1: "BEGIN:VCARD\nFN:Alex\nTEL:123\nEND:VCARD" });
+    await from_phone.send("kdeconnect.sms.messages", { messages: [{ _id: 1, thread_id: 4, addresses: [{ address: "123" }], body: "Hi", date: 1000, type: 1, read: 0 }], version: 2 });
+    const contacts = await until(async () => ((await laptop.control.methods.get_device(phone_id)).plugins.contacts as ContactsState | undefined)?.contacts[0], "the contacts");
+    expect(contacts.name).toBe("Alex");
+    const conversation = await until(async () => ((await laptop.control.methods.get_device(phone_id)).plugins.sms as SmsState | undefined)?.conversations[0], "the messages");
+    expect(conversation.messages[0]?.body).toBe("Hi");
+    await expect(laptop.control.methods.run_device_action(phone_id, "sms.send", { addresses: ["123"], message: "Hello back" })).resolves.toBeUndefined();
+  });
+
+  test("a device moves, clicks and types on this computer", async () => {
+    const { laptop, phone, laptop_id } = await paired_pair();
+    const from_phone = phone.control.devices.handle(laptop_id, "test");
+    await from_phone.send("kdeconnect.mousepad.request", { dx: 3, dy: -2 });
+    await from_phone.send("kdeconnect.mousepad.request", { singleclick: true });
+    await from_phone.send("kdeconnect.mousepad.request", { key: "hello" });
+    await from_phone.send("kdeconnect.mousepad.request", { specialKey: 12, ctrl: true });
+    await until(() => laptop.computer.done.includes("key ctrl+Return"), "the keys");
+    expect(laptop.computer.done).toEqual(expect.arrayContaining(["move 3 -2", "click left click", "type hello"]));
+  });
+
+  test("a phone's files are mounted without keeping its password", async () => {
+    const { laptop, phone, phone_id, laptop_id } = await paired_pair();
+    const from_phone = phone.control.devices.handle(laptop_id, "test");
+    await from_phone.send("kdeconnect.sftp", { ip: "127.0.0.1", port: 1739, user: "kdeconnect", password: "secret-once", path: "/storage", multiPaths: ["/storage/emulated/0"], pathNames: ["All files"] });
+    const state = await until(async () => ((await laptop.control.methods.get_device(phone_id)).plugins.sftp as SftpState | undefined)?.folder, "the mount");
+    expect(laptop.computer.done.some((line) => line.startsWith("mount kdeconnect@127.0.0.1:1739/storage"))).toBe(true);
+    expect(JSON.stringify(await laptop.control.methods.list_devices())).not.toContain("secret-once");
+    await laptop.control.methods.run_device_action(phone_id, "sftp.unmount", {});
+    expect(laptop.computer.done).toContain(`unmount ${state}`);
   });
 });
