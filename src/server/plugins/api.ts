@@ -67,6 +67,8 @@ export interface ControlServices {
   withdraw(key: string): void;
   // The folder files from other devices land in.
   downloads_folder(): string;
+  // The folder a device's files are mounted under, one subfolder per device.
+  mounts_folder(): string;
   devices(): DeviceView[];
   // The run commands this device offers, from the synced catalogue.
   commands(): RunCommand[];

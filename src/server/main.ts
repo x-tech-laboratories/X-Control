@@ -83,6 +83,7 @@ const control = await start_control({
   database: () => database,
   identity_file: config.identity_file,
   downloads_folder: config.downloads_folder,
+  mounts_folder: config.mounts_folder,
   system: config.system === "sample" ? sample_computer() : linux_services(),
   // A server has no desktop, so its notices go out through the channels its config names.
   notify: (notice) => {

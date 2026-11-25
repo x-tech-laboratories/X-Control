@@ -20,6 +20,8 @@
 - TLS then starts with the roles reversed: the device that connected takes the server's part. Certificates are
   self-signed EC P-256, their common name the device id. A paired device must show the certificate it was paired
   with; an unpaired one is trusted for now and may only ask to pair.
+- Devices are also advertised and found over mDNS as `_kdeconnect._udp`, named by id with `id`, `name`, `type` and
+  `protocol` in TXT; a device found that way is sent this one's identity over UDP, as after a broadcast.
 - Over TLS both sides send their identity again; a device whose id or version changed, or whose certificate names
   another device, is refused.
 - Pairing sends `kdeconnect.pair` with the request's time; both sides show the first eight hex digits of SHA-256 over
@@ -37,7 +39,7 @@ plugin's settings are kept in the `plugins` setting, which both sides read.
 
 ## Next
 
-- Valent's remaining plugins: SMS and contacts, SFTP, the remote mouse, keyboard and presenter, mDNS discovery.
+- Keeping contacts and messages in the store, so they show while the phone is away.
 - LNXlink: this computer's sensors and controls published to Home Assistant over MQTT (X-Libs has `server/mqtt_discovery`).
 - System Bridge: this computer's hardware and system readings, and its controls, over a WebSocket API.
 - A daemon on every computer reporting to a central one, so the page shows every machine.

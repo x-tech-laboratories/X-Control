@@ -27,6 +27,7 @@ const control = await start_control({
   database: () => database,
   identity_file: join(folder, "identity.json"),
   downloads_folder: join(folder, "Downloads"),
+  mounts_folder: join(folder, "mounts"),
   system: sample_computer(),
   notify: (notice) => console.info(`phone shows: ${notice.title} — ${notice.body}`),
   withdraw: () => {},
@@ -86,6 +87,20 @@ setInterval(async () => {
   sent = true;
   const device = control.devices.handle(server_id, "sample");
   for (const notification of sample_notifications) await device.send("kdeconnect.notification", { ...notification, time: String(Date.now()), isClearable: true, silent: false });
+  await device.send("kdeconnect.contacts.response_uids_timestamps", { uids: ["alex", "sam"], alex: 1, sam: 1 });
+  await device.send("kdeconnect.contacts.response_vcards", { uids: ["alex", "sam"], alex: "BEGIN:VCARD\nFN:Alex\nTEL:+15550100\nEND:VCARD", sam: "BEGIN:VCARD\nFN:Sam\nTEL:+15550101\nEND:VCARD" });
+  const minute = 60_000;
+  const now = Date.now();
+  const message = (id: number, thread: number, address: string, body: string, ago: number, sent = false) => ({ _id: id, thread_id: thread, addresses: [{ address }], body, date: now - ago * minute, type: sent ? 2 : 1, read: 1 });
+  await device.send("kdeconnect.sms.messages", {
+    version: 2,
+    messages: [
+      message(1, 1, "+15550100", "Are we still on for tonight?", 5),
+      message(2, 1, "+15550100", "Yes, seven o'clock.", 4, true),
+      message(3, 1, "+15550100", "Great, see you there.", 2),
+      message(4, 2, "+15550101", "Can you send me the photos?", 90),
+    ],
+  });
   await device.send("kdeconnect.connectivity_report", { signalStrengths: { "1": { networkType: "5G", signalStrength: 3 } } });
   console.info("paired; sent sample notifications and signal");
 }, 1000);

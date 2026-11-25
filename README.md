@@ -27,9 +27,15 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Lock | locks and unlocks the session | locks it |
 | Media players | lets a device control the players here | controls its players |
 | System volume | lets a device control the speakers here | controls its speakers |
+| Contacts | — | reads its contacts, to name messages and calls |
+| Messages | — | reads its text conversations and sends messages through it |
+| Browse files | — | mounts its storage over SFTP and opens it in the file manager |
+| Remote input | a device is its touchpad and keyboard | types text and presses keys on it |
+| Presenter | a phone moves the pointer as a slide remote | — |
 
-Not yet: SMS and contacts, browsing a phone's files (SFTP), the remote mouse, keyboard and presenter, and finding
-devices over mDNS or Bluetooth. Features from LNXlink and System Bridge come next; see [docs/architecture.md](docs/architecture.md).
+Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address. Not yet: Bluetooth.
+Contacts and messages are kept while the daemon runs and fetched again when the phone connects. Features from LNXlink
+and System Bridge come next; see [docs/architecture.md](docs/architecture.md).
 
 ## Running it
 
@@ -52,10 +58,11 @@ Sign in to a server with an account from `npm run hash-password -- <name>`, whic
 | Key | Meaning | Default |
 | --- | --- | --- |
 | `database` | the SQLite file | required |
-| `backups_folder`, `identity_file`, `downloads_folder`, `plugins_folder` | where those live | beside the database |
+| `backups_folder`, `identity_file`, `downloads_folder`, `mounts_folder`, `plugins_folder` | where those live | beside the database |
 | `device_name`, `device_type` | how other devices see this one | the host name, `desktop` |
 | `system` | `linux` drives the desktop, `sample` a pretend one | `linux` |
 | `kdeconnect.discovery` | find devices by broadcast | `true` |
+| `kdeconnect.mdns` | also find and advertise over mDNS, while discovery is on | `true` |
 | `kdeconnect.listen_port`, `announce_port` | the UDP ports | `1716` |
 | `kdeconnect.tcp_ports`, `payload_ports` | `[lowest, highest]` | `[1716, 1764]`, `[1739, 1764]` |
 | `notify_channels` | ntfy, webhook, mail or Apprise entries | none |
@@ -67,7 +74,8 @@ KDE Connect side on UDP and TCP 1716 to 1764, which `openFirewall` opens.
 
 The desktop app starts its own daemon on a Unix socket, which keeps devices connected with the window closed and
 shows their notifications on the desktop. It drives the desktop through the programs every desktop ships:
-`wl-clipboard` or `xclip`, `playerctl`, `pactl`, `loginctl`, `xdg-open` and `canberra-gtk-play`. A feature whose
+`wl-clipboard` or `xclip`, `playerctl`, `pactl`, `loginctl`, `xdg-open`, `canberra-gtk-play`, `ydotool` (with its
+daemon) on Wayland or `xdotool` on X11 for remote input, and `sshfs` for a phone's files. A feature whose
 program is missing reports that in plain words and the rest keep working.
 
 ## Deviations from the standard
@@ -87,7 +95,8 @@ rights and are not sandboxed; install only plugins you trust. Each subfolder hol
 `"x-plugin": { "server": "dist/server.js", "web": "dist/web.js" }`. A server-side plugin provides a `capability`
 that takes and sends KDE Connect packets; a page-side one fills a device's `device_panel` slot.
 
-Paired devices can run the commands listed under Commands as the daemon's user, and lock or unlock its session.
+Paired devices can run the commands listed under Commands as the daemon's user, lock or unlock its session, and move
+its pointer and type on it while Remote input is on. A phone's SFTP password is used once to mount and never kept.
 Pairing needs the user's acceptance on both sides, with the same verification key shown on each screen.
 
 ## Licence

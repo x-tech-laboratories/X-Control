@@ -99,6 +99,17 @@ describe("a device's page", () => {
     expect(calls.run_device_action).toHaveBeenCalledWith("a".repeat(32), "share.url", { url: "https://example.org/" });
   });
 
+  test("opens a conversation with contacts' names and sends a reply", async () => {
+    const message = { id: 1, thread_id: 4, addresses: ["+15550100"], body: "See you there", date: Date.now(), is_sent: false, is_read: true };
+    use_devices([device({ plugins: { sms: { conversations: [{ thread_id: 4, addresses: ["+15550100"], messages: [message] }] }, contacts: { contacts: [{ uid: "u1", name: "Alex", phones: ["+1 555 0100"] }] } } })]);
+    render(<DeviceDetail id={"a".repeat(32)} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Alex" }));
+    expect(calls.run_device_action).toHaveBeenCalledWith("a".repeat(32), "sms.open", { thread_id: 4 });
+    fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: "On my way" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(calls.run_device_action).toHaveBeenCalledWith("a".repeat(32), "sms.send", { addresses: ["+15550100"], message: "On my way" });
+  });
+
   test("offers pairing to a connected device that is not paired", async () => {
     use_devices([device({ pair_state: "unpaired" })]);
     render(<DeviceDetail id={"a".repeat(32)} />);

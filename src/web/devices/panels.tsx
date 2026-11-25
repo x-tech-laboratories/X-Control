@@ -10,7 +10,8 @@ import { Facts, Section } from "@x-tech-laboratories/x-libs/web/react/layout";
 import { ProgressBar } from "@x-tech-laboratories/x-libs/web/react/progress";
 import { Age } from "@x-tech-laboratories/x-libs/web/react/time";
 
-import type { BatteryState, CallState, LockState, MediaState, NotificationState, RemoteCommandState, ShareState, SignalState, VolumeState } from "../../shared/plugins/states.ts";
+import { name_for } from "../../shared/plugins/contacts.ts";
+import type { BatteryState, CallState, ContactsState, InputState, LockState, MediaState, NotificationState, RemoteCommandState, SftpState, ShareState, SignalState, SmsState, VolumeState } from "../../shared/plugins/states.ts";
 import { succeeds } from "../api.ts";
 import type { DevicePanelProps } from "../plugins.tsx";
 
@@ -230,6 +231,100 @@ function VolumePanel(props: DevicePanelProps) {
   );
 }
 
+// ── Messages and contacts ────────────────────────────────────────────────────
+
+function MessagesPanel(props: DevicePanelProps) {
+  const [open, set_open] = useState<number | null>(null);
+  const conversations = state_of<SmsState>(props, "sms")?.conversations ?? [];
+  const contacts = state_of<ContactsState>(props, "contacts")?.contacts ?? [];
+  if (conversations.length === 0 && !props.device.incoming.includes("kdeconnect.sms.request")) return null;
+  const who = (addresses: string[]): string => addresses.map((address) => name_for(contacts, address)).join(", ") || "Unknown";
+  const shown = conversations.find((conversation) => conversation.thread_id === open);
+  return (
+    <Section title="Messages" level={3} tools={<button type="button" onClick={() => void run(props, "refresh")}>Refresh</button>}>
+      {shown ? (
+        <>
+          <div className="button-list">
+            <button type="button" onClick={() => set_open(null)}>All conversations</button>
+            <button type="button" onClick={() => void run(props, "open", { thread_id: shown.thread_id })}>Load older</button>
+          </div>
+          <h4>{who(shown.addresses)}</h4>
+          <ul className="message-list">
+            {[...shown.messages].reverse().map((message) => (
+              <li key={message.id} className={message.is_sent ? "message sent" : "message"}>
+                <span className="muted small">
+                  {message.is_sent ? "You" : who(message.addresses)} · <Age epoch={Math.floor(message.date / 1000)} />
+                </span>
+                <p>{message.body}</p>
+              </li>
+            ))}
+          </ul>
+          <SendField label="Message" button="Send" multiline on_send={(message) => run(props, "send", { addresses: shown.addresses, message }, "Message sent.")} />
+        </>
+      ) : conversations.length === 0 ? (
+        <p className="muted">No messages yet.</p>
+      ) : (
+        <ul className="notification-list">
+          {conversations.map((conversation) => (
+            <li key={conversation.thread_id}>
+              <button type="button" className="link" onClick={() => (set_open(conversation.thread_id), void run(props, "open", { thread_id: conversation.thread_id }))}>
+                {who(conversation.addresses)}
+              </button>{" "}
+              <span className="muted">{conversation.messages[0]?.body}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+function ContactsPanel(props: DevicePanelProps) {
+  const contacts = state_of<ContactsState>(props, "contacts")?.contacts;
+  if (!contacts) return null;
+  return (
+    <Section title="Contacts" level={3} tools={<button type="button" onClick={() => void run(props, "refresh")}>Refresh</button>}>
+      <p>{contacts.length === 1 ? "1 contact" : `${contacts.length} contacts`}, used to name messages and calls.</p>
+    </Section>
+  );
+}
+
+// ── Files and input ──────────────────────────────────────────────────────────
+
+function FilesPanel(props: DevicePanelProps) {
+  const sftp = state_of<SftpState>(props, "sftp");
+  if (!sftp && !props.device.incoming.includes("kdeconnect.sftp.request")) return null;
+  return (
+    <Section
+      title="Files"
+      level={3}
+      tools={sftp?.folder ? <button type="button" onClick={() => void run(props, "unmount")}>Stop browsing</button> : <button type="button" onClick={() => void run(props, "browse", {}, "Opening the phone's files.")}>Browse files</button>}
+    >
+      {sftp?.error && <p className="muted">{sftp.error}</p>}
+      {sftp?.folder ? <Facts layout="rows" rows={sftp.places.length ? sftp.places.map((place) => [place.name, <code className="shared-value">{place.path}</code>]) : [["Mounted at", <code className="shared-value">{sftp.folder}</code>]]} /> : <p className="muted">The phone's storage opens in this computer's file manager.</p>}
+    </Section>
+  );
+}
+
+const typing_keys = ["Return", "BackSpace", "Tab", "Escape", "Left", "Up", "Right", "Down"];
+
+function InputPanel(props: DevicePanelProps) {
+  const ready = state_of<InputState>(props, "mousepad")?.keyboard_ready;
+  if (!ready) return null;
+  return (
+    <Section title="Keyboard" level={3}>
+      <SendField label="Text to type on the device" button="Type" on_send={(text) => run(props, "type", { text })} />
+      <div className="button-list">
+        {typing_keys.map((key) => (
+          <button key={key} type="button" onClick={() => void run(props, "key", { key })}>
+            {key === "BackSpace" ? "Backspace" : key === "Return" ? "Enter" : key}
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 // ── Panels ───────────────────────────────────────────────────────────────────
 
 // Each plugin's panel by plugin id; a plugin with nothing to show here has none.
@@ -244,4 +339,8 @@ export const panels: Record<string, ComponentType<DevicePanelProps>> = {
   runcommand: CommandsPanel,
   mpris: MediaPanel,
   systemvolume: VolumePanel,
+  sms: MessagesPanel,
+  contacts: ContactsPanel,
+  sftp: FilesPanel,
+  mousepad: InputPanel,
 };

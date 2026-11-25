@@ -25,6 +25,7 @@ beforeAll(async () => {
     database: () => database,
     identity_file: join(folder, "identity.json"),
     downloads_folder: join(folder, "Downloads"),
+    mounts_folder: join(folder, "mounts"),
     system: sample_computer(),
     notify: () => {},
     withdraw: () => {},
