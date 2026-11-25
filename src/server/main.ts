@@ -95,6 +95,7 @@ const control = await start_control({
   defaults: { name: config.device_name ?? undefined, type: config.device_type },
   folder_plugins: folder.plugins,
   home_assistant: config.home_assistant,
+  system_bridge: config.system_bridge,
 });
 
 // ── Server ───────────────────────────────────────────────────────────────────

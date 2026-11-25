@@ -109,6 +109,17 @@ export function sample_computer(): SampleComputer {
       unmount: async (folder) => void done.push(`unmount ${folder}`),
     },
     readings: {
+      system_info: async () => ({
+        hostname: "sample",
+        kernel_version: "6.18.0-sample",
+        platform_version: "26.11",
+        device: { manufacturer: "Sample Maker", model: "Sample Desktop", version: null, board_vendor: null, board_name: null, bios_vendor: null, bios_version: null, chassis_type: "3" },
+      }),
+      processes: async () => [
+        { id: 1, name: "systemd", status: "sleeping", username: "root", memory_bytes: 12_000_000 },
+        { id: 1200, name: "firefox", status: "sleeping", username: "sample", memory_bytes: 900_000_000 },
+        { id: 1300, name: "x-control", status: "running", username: "sample", memory_bytes: 150_000_000 },
+      ],
       cpu: async () => {
         const busy = drift(8, 64, 40);
         return { busy, cores_busy: [busy, drift(4, 80, 30, 0.3), drift(2, 50, 50, 0.6), drift(10, 70, 35, 0.9)], load: [drift(0.3, 2.4, 60), 1.1, 0.9], cores: 4, model: "Sample Processor 4-Core" };

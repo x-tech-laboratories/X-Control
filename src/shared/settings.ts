@@ -27,16 +27,23 @@ export const home_assistant_setting_defaults: Settings = {
   "home_assistant.interval": 10,
 };
 
+// This computer's System Bridge server, which each computer runs for itself.
+export const system_bridge_setting_defaults: Settings = {
+  "system_bridge.enabled": false,
+  "system_bridge.port": 9170,
+};
+
 export const common_setting_defaults: Settings = {
   // How long History keeps versions of a run command, in days.
   "history.keep_days": 180,
   [plugins_setting]: {},
   ...notice_setting_defaults,
   ...home_assistant_setting_defaults,
+  ...system_bridge_setting_defaults,
 };
 
 // Settings that belong to one device: they never sync, and an export leaves them out.
-export const device_setting_keys = [...Object.keys(notice_setting_defaults), ...Object.keys(home_assistant_setting_defaults)];
+export const device_setting_keys = [...Object.keys(notice_setting_defaults), ...Object.keys(home_assistant_setting_defaults), ...Object.keys(system_bridge_setting_defaults)];
 
 // Settings never given back to the page or other programs; they read a placeholder while one is set.
 export const secret_setting_keys = ["home_assistant.password"];
@@ -90,7 +97,7 @@ export const settings_feature = define_feature({
   api: {
     get_settings: {
       description:
-        "The settings stored, by key; a key missing here has its default. history.keep_days is how long run commands' versions are kept; notify.<kind> turns a kind of notification on or off on this device; plugins holds each plugin's on or off and settings by plugin id; home_assistant.* is this device's link to Home Assistant over MQTT, its password hidden.",
+        "The settings stored, by key; a key missing here has its default. history.keep_days is how long run commands' versions are kept; notify.<kind> turns a kind of notification on or off on this device; plugins holds each plugin's on or off and settings by plugin id; home_assistant.* is this device's link to Home Assistant over MQTT, its password hidden; system_bridge.enabled and system_bridge.port run a System Bridge server on this device.",
       params: [],
     },
     set_setting: {

@@ -21,6 +21,8 @@ on Android in Capacitor. Read `README.md` first, then `docs/architecture.md`. It
   `src/shared/plugins/manifests.ts`, its state in `src/shared/plugins/states.ts` and its panel in `src/web/devices/panels.tsx`.
 - Each LNXlink feature is a plugin providing `entities`, readings and controls of this computer that show under This
   computer and go to Home Assistant over MQTT; its reads go through `SystemServices.readings`, `power` or `units`.
+- The System Bridge server in `src/server/system_bridge/` must stay as Home Assistant's integration reads it: frames
+  with only `id`, `type`, `subtype`, `data`, `message` and `module`, and no module answered with null. See `docs/architecture.md`.
 - Plugins reach the computer only through `SystemServices`; the Linux side runs programs through X-Libs, and only the run commands the user wrote go through a shell.
 - Code in `src/shared/` runs in the daemon and in the page: no DOM, no `node:` imports.
 - A call that only reads is named `list_`, `get_`, `search_`, `lookup_` or `export_`; any other name announces a change.

@@ -16,7 +16,9 @@ import {
   read_net_dev,
   read_nvidia_smi,
   read_power_profiles,
+  read_os_release,
   read_proc_stat,
+  read_process_status,
   read_wireless,
   streams_running,
 } from "../src/server/system/linux_readings.ts";
@@ -129,5 +131,15 @@ describe("session and power", () => {
     expect(read_power_profiles("")).toBeNull();
     expect(read_brightnessctl("intel_backlight,backlight,500,50%,1000\n")).toBe(50);
     expect(read_brightnessctl("")).toBeNull();
+  });
+});
+
+describe("system", () => {
+  test("reads a process's status and the distribution's version", () => {
+    const status = "Name:\tfirefox\nState:\tS (sleeping)\nUid:\t1000\t1000\t1000\t1000\nVmRSS:\t  204800 kB\n";
+    expect(read_process_status(42, status, (uid) => (uid === 1000 ? "me" : null))).toEqual({ id: 42, name: "firefox", status: "sleeping", username: "me", memory_bytes: 204800 * 1024 });
+    expect(read_process_status(2, "Name:\tkthreadd\nState:\tS (sleeping)\nUid:\t0\t0\t0\t0\n", () => null)).toMatchObject({ username: null, memory_bytes: null });
+    expect(read_os_release('NAME=NixOS\nVERSION_ID="26.11"\n')).toBe("26.11");
+    expect(read_os_release("")).toBe("");
   });
 });

@@ -5,13 +5,13 @@
 
 import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import { statfs } from "node:fs/promises";
-import { networkInterfaces, uptime, userInfo } from "node:os";
+import { hostname, networkInterfaces, release, uptime, userInfo } from "node:os";
 import { join } from "node:path";
 
 import { run_program } from "@x-tech-laboratories/x-libs/agent/programs";
 
 import { output_of } from "./linux.ts";
-import type { ComputerReadings, CpuReading, DiskCounters, DiskReading, GpuReading, MemoryReading, PowerServices, TemperatureReading, UnitServices, WifiReading } from "./services.ts";
+import type { ProcessReading, SystemInfo, ComputerReadings, CpuReading, DiskCounters, DiskReading, GpuReading, MemoryReading, PowerServices, TemperatureReading, UnitServices, WifiReading } from "./services.ts";
 
 // ── Files ────────────────────────────────────────────────────────────────────
 
@@ -265,13 +265,44 @@ function restart_needed(): boolean {
   }
 }
 
+// ── System ───────────────────────────────────────────────────────────────────
+
+// A process's name, state, owner and memory from /proc/<pid>/status.
+export function read_process_status(pid: number, text: string, user_of: (uid: number) => string | null): ProcessReading {
+  const field = (key: string): string | null => new RegExp(`^${key}:\\s*(.*)$`, "m").exec(text)?.[1]?.trim() ?? null;
+  const memory = /^(\d+)/.exec(field("VmRSS") ?? "")?.[1];
+  const uid = Number((field("Uid") ?? "").split(/\s+/)[0]);
+  return { id: pid, name: field("Name") ?? String(pid), status: field("State")?.replace(/^\S+\s*\((.*)\)$/, "$1") ?? null, username: Number.isFinite(uid) ? user_of(uid) : null, memory_bytes: memory ? Number(memory) * 1024 : null };
+}
+
+export function read_os_release(text: string): string {
+  return /^VERSION_ID="?([^"\n]*)"?$/m.exec(text)?.[1] ?? "";
+}
+
+function dmi(name: string): string | null {
+  return read_text(`/sys/class/dmi/id/${name}`).trim() || null;
+}
+
 // ── Readings ─────────────────────────────────────────────────────────────────
 
 export function linux_readings(): ComputerReadings {
   let last_stat = read_proc_stat(read_text("/proc/stat"));
   const model = cpu_model();
   const nvidia = nvidia_reader();
+  const me = userInfo();
+  const user_of = (uid: number): string | null => (uid === me.uid ? me.username : uid === 0 ? "root" : null);
   return {
+    system_info: async (): Promise<SystemInfo> => ({
+      hostname: hostname(),
+      kernel_version: release(),
+      platform_version: read_os_release(read_text("/etc/os-release")),
+      device: { manufacturer: dmi("sys_vendor"), model: dmi("product_name"), version: dmi("product_version"), board_vendor: dmi("board_vendor"), board_name: dmi("board_name"), bios_vendor: dmi("bios_vendor"), bios_version: dmi("bios_version"), chassis_type: dmi("chassis_type") },
+    }),
+    processes: async () =>
+      list_folder("/proc").filter((name) => /^\d+$/.test(name)).flatMap((name) => {
+        const text = read_text(`/proc/${name}/status`);
+        return text ? [read_process_status(Number(name), text, user_of)] : [];
+      }),
     cpu: async (): Promise<CpuReading> => {
       const stat = read_proc_stat(read_text("/proc/stat"));
       const before = last_stat;

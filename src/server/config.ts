@@ -26,6 +26,8 @@ export interface ServerConfig {
   notify_channels: unknown[];
   // The link to Home Assistant over MQTT, for fields Settings leaves empty.
   home_assistant: NonNullable<ControlOptions["home_assistant"]>;
+  // The System Bridge server, where Settings leaves it unset.
+  system_bridge: NonNullable<ControlOptions["system_bridge"]>;
 }
 
 interface RawConfig {
@@ -40,6 +42,7 @@ interface RawConfig {
   system?: unknown;
   kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown; mdns?: unknown };
   notify_channels?: unknown;
+  system_bridge?: { enabled?: unknown; port?: unknown };
   home_assistant?: { enabled?: unknown; broker?: unknown; username?: unknown; password_file?: unknown; password_credential?: unknown; discovery_prefix?: unknown; base_topic?: unknown; interval?: unknown };
 }
 
@@ -96,5 +99,9 @@ export function read_config(raw: RawConfig): ServerConfig {
     },
     notify_channels: Array.isArray(raw.notify_channels) ? raw.notify_channels : [],
     home_assistant: read_home_assistant(raw.home_assistant ?? {}),
+    system_bridge: {
+      ...(typeof raw.system_bridge?.enabled === "boolean" ? { enabled: raw.system_bridge.enabled } : {}),
+      ...(optional_port(raw.system_bridge?.port) ? { port: optional_port(raw.system_bridge?.port) } : {}),
+    },
   };
 }

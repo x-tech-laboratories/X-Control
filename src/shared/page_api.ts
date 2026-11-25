@@ -12,6 +12,7 @@ import { sync_device_method_names, type SyncDeviceMethods, type SyncStatus } fro
 
 import type { ComputerMethods } from "./computer/api.ts";
 import type { DesktopMethods } from "./desktop.ts";
+import type { SystemBridgeMethods } from "./system_bridge/api.ts";
 import type { DeviceMethods } from "./devices/api.ts";
 import type { StoreMethods } from "./store.ts";
 
@@ -27,7 +28,7 @@ export const desktop_api_name = "x_control_desktop";
 // ── Calls ────────────────────────────────────────────────────────────────────
 
 // Every call the page makes on its daemon: the stored data, the devices it reaches, and the computer it runs on.
-export type ControlMethods = StoreMethods & DeviceMethods & ComputerMethods;
+export type ControlMethods = StoreMethods & DeviceMethods & ComputerMethods & SystemBridgeMethods;
 
 // Sync with a server and backups of the device's own database; a browser is already on the server.
 export type SyncAndBackupMethods = SyncDeviceMethods & BackupMethods;

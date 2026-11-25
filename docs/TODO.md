@@ -15,7 +15,12 @@
 
 ## KDE Connect
 
-- Bluetooth as a second way to reach devices.
+Left before X-Control can replace Valent on a desktop:
+
+- Bluetooth as a second way to reach devices (Valent's `bluez` plugin).
+- Send this computer's own desktop notifications to paired phones, by listening on `org.freedesktop.Notifications` (Valent's `fdo` plugin).
+- Lower or mute the speakers and pause media players while the phone rings or a call is under way, and put them back after (Valent's `telephony` plugin).
+- Keep a phone's contacts where the desktop's apps see them, in Evolution Data Server (Valent's `eds` plugin).
 - Keep contacts and messages in the store, so they show while the phone is away.
 - Check mDNS discovery against Valent and the KDE Connect app on a network that answers mDNS.
 - Try SFTP, remote input and messages with a real phone.
@@ -37,5 +42,12 @@ The common modules are plugins under This computer. These are still to do:
 
 ## System Bridge
 
-- This computer's readings and controls over System Bridge's WebSocket API, from the same readings registry, so its
-  Home Assistant integration and clients work against X-Control.
+The server covers what Home Assistant's integration uses. Still to do:
+
+- Displays, with brightness and power (`DISPLAY_CONTROL`), from wlr-randr, kscreen-doctor or xrandr.
+- Audio inputs and per-app streams in the audio module.
+- Shuffle and repeat for media, and a thumbnail of what plays.
+- Process CPU and memory use, and `PROCESS_KILL`.
+- Telling clients `POWER_STATE_CHANGED` resumed after the computer wakes, and announcing over mDNS again then.
+- Bluetooth, cameras, the desktop's windows and workspaces, Hyprland, Omarchy and Discord, which System Bridge offers beyond what Home Assistant uses.
+- Its own web page, MCP endpoint and push notifications.

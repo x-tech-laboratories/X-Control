@@ -9,5 +9,9 @@
     "tcp_ports": [41716, 41730],
     "payload_ports": [41731, 41760]
   },
-  "notify_channels": []
+  "notify_channels": [],
+  "system_bridge": {
+    "enabled": true,
+    "port": 49170
+  }
 }

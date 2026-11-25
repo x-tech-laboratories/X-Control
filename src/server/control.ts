@@ -1,17 +1,18 @@
 // X-Control's working core, the same in the server and the desktop daemon: this device's KDE Connect identity, the
 // plugin host with every bundled plugin, the paired and connected devices, the network they are reached over, this
-// computer's readings and controls, and the link that publishes them to Home Assistant.
+// computer's readings and controls, the link that publishes them to Home Assistant, and its System Bridge server.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { create_plugin_host, type PluginHost, type PluginRecords, type SettingValues } from "@x-tech-laboratories/x-libs/plugins";
 import type { SqlDatabase } from "@x-tech-laboratories/x-libs/sql";
 
 import type { ComputerMethods } from "../shared/computer/api.ts";
 import type { DeviceMethods } from "../shared/devices/api.ts";
+import type { SystemBridgeMethods } from "../shared/system_bridge/api.ts";
 import { clean_device_name } from "../shared/kdeconnect/packet.ts";
 import { notice_setting, type Notice } from "../shared/notices.ts";
 import { app_info, plugins_setting } from "../shared/plugins/manifests.ts";
@@ -27,6 +28,8 @@ import { start_mdns, type MdnsDiscovery } from "./kdeconnect/mdns.ts";
 import type { ControlPlugin, ControlPluginApi } from "./plugins/api.ts";
 import { bundled_plugins } from "./plugins/bundled.ts";
 import type { SystemServices } from "./system/services.ts";
+import { as_uuid } from "./system_bridge/modules.ts";
+import { create_system_bridge_link, system_bridge_settings, type SystemBridgeLink, type SystemBridgeSettings } from "./system_bridge/link.ts";
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
@@ -55,18 +58,21 @@ export interface ControlOptions {
   folder_plugins?: ControlPlugin[];
   // The link to Home Assistant from the config file, used where Settings leaves a field empty; the password is read from its file.
   home_assistant?: Partial<Omit<HomeAssistantSettings, "password">> & { password_file?: string };
+  // The System Bridge server from the config file, used where Settings leaves it unset.
+  system_bridge?: Partial<SystemBridgeSettings>;
   // How the bridge reaches the broker; tests hand in their own.
   mqtt_session?: SessionFactory;
   log?: (message: string) => void;
 }
 
 export interface Control {
-  methods: DeviceMethods & ComputerMethods;
+  methods: DeviceMethods & ComputerMethods & SystemBridgeMethods;
   plugins: PluginHost<ControlPluginApi>;
   devices: DeviceManager;
   network: LanBackend;
   readings: Readings;
   home_assistant: HomeAssistantBridge;
+  system_bridge: SystemBridgeLink;
   identity(): DeviceIdentity;
   // Brings the plugins in line with their records after Settings changed them, and tells devices of new commands.
   after_store_change(method: string): Promise<void>;
@@ -179,6 +185,20 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     on_status: options.on_change,
     log,
   });
+  const system_bridge = create_system_bridge_link({
+    system: options.system,
+    commands: () => commands_feature.methods.list_commands(options.database()),
+    notify,
+    withdraw: options.withdraw,
+    // KDE Connect's id written as a UUID, so System Bridge clients know this computer by the same id.
+    uuid: () => as_uuid(identity.device_id),
+    keys_file: join(dirname(options.identity_file), "system-bridge-keys.json"),
+    downloads_folder: options.downloads_folder,
+    settings: () => system_bridge_settings(stored_settings(), options.system_bridge),
+    mdns: options.network?.discovery !== false && options.network?.mdns !== false,
+    on_change: options.on_change,
+    log,
+  });
   let bridge_settings = JSON.stringify(home_assistant_settings(stored_settings(), options.home_assistant));
 
   for (const plugin of [...bundled_plugins, ...(options.folder_plugins ?? [])]) await plugins.add(plugin);
@@ -190,6 +210,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
   await network.start();
   const mdns: MdnsDiscovery | null = options.network?.discovery !== false && options.network?.mdns !== false ? start_mdns({ identity: () => identity, announce: (address) => network.announce(address), on_warning: log }) : null;
   home_assistant.start();
+  await system_bridge.follow_settings();
   log(`X-Control is ${identity.name} (${identity.device_id}) on TCP port ${network.tcp_port()}`);
 
   // Records changed on another page or device: each plugin is turned on or off and given its settings to match.
@@ -204,7 +225,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     }
   }
 
-  const methods: DeviceMethods & ComputerMethods = {
+  const methods: DeviceMethods & ComputerMethods & SystemBridgeMethods = {
     get_this_device: async () => ({ id: identity.device_id, name: identity.name, type: identity.type, tcp_port: network.tcp_port(), fingerprint: fingerprint_of(identity.certificate), discovery: options.network?.discovery !== false }),
     rename_this_device: async (name) => {
       identity = { ...identity, name: clean_device_name(name) };
@@ -227,6 +248,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     list_readings: () => readings.refresh(),
     set_control: (id, value) => readings.set(id, value),
     get_home_assistant_status: async () => home_assistant.status(),
+    ...system_bridge.methods,
   };
 
   return {
@@ -236,6 +258,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     network,
     readings,
     home_assistant,
+    system_bridge,
     identity: () => identity,
     async after_store_change(method) {
       if (method === "set_setting" || method === "import_settings") {
@@ -245,6 +268,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
           bridge_settings = now;
           home_assistant.restart();
         }
+        await system_bridge.follow_settings();
       }
       if (/_command|commands/.test(method) || method === "restore_version") {
         readings.forget_list();
@@ -253,6 +277,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     },
     async stop() {
       await home_assistant.stop();
+      await system_bridge.stop();
       devices.stop();
       await mdns?.stop();
       await network.stop();
