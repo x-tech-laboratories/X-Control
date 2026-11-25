@@ -5,7 +5,8 @@ protocol, so it pairs with the KDE Connect app on Android, with KDE Connect, Val
 and with other X-Control daemons. From its page you see a phone's battery, signal and notifications, answer messages,
 ring it, send it links, text and files, share the clipboard, run commands on either side, and control media players
 and speakers both ways. It also reads the computer it runs on (processor, memory, disks, network, temperatures,
-power and the session) and offers its controls, under This computer and in Home Assistant over MQTT, as LNXlink does.
+power and the session) and offers its controls, under This computer and in Home Assistant over MQTT, as LNXlink does,
+and through a System Bridge server that Home Assistant's System Bridge integration connects to.
 
 It follows the [X-Tech Application Standard](https://x-tech-laboratories.github.io/standards/application/): one
 daemon holds all the work, and the web page, the desktop app and the Android app are UIs onto it.
@@ -56,7 +57,22 @@ an MQTT broker, they are published to Home Assistant with MQTT discovery, under 
 | Services | whether each systemd unit named runs | start and stop it |
 
 A sleeping NVIDIA card in a laptop is left asleep rather than woken by `nvidia-smi`. LNXlink modules not yet taken
-over are listed in [docs/TODO.md](docs/TODO.md); System Bridge comes next, see [docs/architecture.md](docs/architecture.md).
+over are listed in [docs/TODO.md](docs/TODO.md).
+
+### System Bridge
+
+Settings → System Bridge runs a server that speaks System Bridge's API (port 9170 by default), so Home Assistant's
+own System Bridge integration reads and controls this computer as it would one running the System Bridge app. It
+advertises itself over mDNS for Home Assistant to find, and clients sign in with a key made in Settings or by
+trading a pairing code for one.
+
+- Data: system (with the machine's maker and model, idle time, lock and a restart waiting), processor, memory, disks
+  with read and write speeds, network cards, battery, graphics cards, media, processes and sound outputs.
+- Controls: power buttons, lock, run commands, keys and text typed, opening paths and links, media, volume,
+  mute and sound output, power profile, keep awake, notifications, and the clipboard.
+- Media: the home folder's Documents, Downloads, Music, Pictures and Videos, browsed and played through signed links.
+
+Not yet: displays, audio inputs, Bluetooth, cameras and windows; see [docs/TODO.md](docs/TODO.md).
 
 ## Running it
 
@@ -87,11 +103,13 @@ Sign in to a server with an account from `npm run hash-password -- <name>`, whic
 | `kdeconnect.listen_port`, `announce_port` | the UDP ports | `1716` |
 | `kdeconnect.tcp_ports`, `payload_ports` | `[lowest, highest]` | `[1716, 1764]`, `[1739, 1764]` |
 | `notify_channels` | ntfy, webhook, mail or Apprise entries | none |
+| `system_bridge` | `enabled`, `port`; Settings overrides each it sets | off, `9170` |
 | `home_assistant` | `enabled`, `broker`, `username`, `password_file` (or `password_credential`, a systemd credential's name), `discovery_prefix`, `base_topic`, `interval`; Settings overrides each field it sets | off |
 
 NixOS hosts use `services.x-control` from the flake's `nixosModules.default`. Phones and desktops reach the server's
 KDE Connect side on UDP and TCP 1716 to 1764, which `openFirewall` opens. `services.x-control.homeAssistant` links the
-server to Home Assistant, its `passwordFile` handed over as a systemd credential.
+server to Home Assistant, its `passwordFile` handed over as a systemd credential, and
+`services.x-control.systemBridge` runs the System Bridge server, with `openFirewall` for its port.
 
 ## Desktop app
 

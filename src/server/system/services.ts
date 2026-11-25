@@ -162,7 +162,29 @@ export interface DevicesInUse {
   speakers: boolean;
 }
 
+// What the computer is, for System Bridge's system module.
+export interface SystemInfo {
+  hostname: string;
+  kernel_version: string;
+  // The distribution's version, such as "26.11".
+  platform_version: string;
+  // The firmware's description of the machine, each field null where it says nothing.
+  device: { manufacturer: string | null; model: string | null; version: string | null; board_vendor: string | null; board_name: string | null; bios_vendor: string | null; bios_version: string | null; chassis_type: string | null };
+}
+
+export interface ProcessReading {
+  id: number;
+  name: string;
+  status: string | null;
+  // The owner, when it is this user or root; null for anyone else.
+  username: string | null;
+  // Resident memory in bytes.
+  memory_bytes: number | null;
+}
+
 export interface ComputerReadings {
+  system_info(): Promise<SystemInfo>;
+  processes(): Promise<ProcessReading[]>;
   cpu(): Promise<CpuReading>;
   memory(): Promise<MemoryReading>;
   disks(): Promise<DiskReading[]>;

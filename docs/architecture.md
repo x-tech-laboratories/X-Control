@@ -10,6 +10,7 @@
 | `src/server/system` | what plugins ask of the computer: the Linux desktop and its readings, or a pretend one for tests and the dev server |
 | `src/server/computer` | this computer's readings and controls, gathered from every plugin's entities |
 | `src/server/home_assistant` | the MQTT bridge that publishes them to Home Assistant |
+| `src/server/system_bridge` | a System Bridge server: its keys, data modules, media folders, HTTP and WebSocket API |
 | `src/server` | the control core (`control.ts`), the web server and its config |
 | `src/daemon` | the desktop app's daemon, on a Unix socket |
 | `src/main`, `src/preload` | Electron's window, tray and login entry |
@@ -52,8 +53,24 @@ goes to `.../state`, its attributes to `.../attributes`, and commands arrive on 
 change. Everything is announced again when `<prefix>/status` says `online`. A retained config under this device's node
 that no entity has now is cleared. The connection is tried again with backoff from one second to a minute.
 
+## System Bridge
+
+The server copies System Bridge 5.31's API as Home Assistant's integration (connector 5.29) reads it:
+
+- `/api/health` without a key, reporting version 5.31.3, since Home Assistant needs 5.28.6 or newer.
+- `/api/websocket`, signed in by one `{"type":"auth","key":...}` frame; a wrong key gets `BAD_KEY` and the socket closes.
+- Every frame carries only `id`, `type`, `subtype`, `data`, `message` and `module`, since the connector refuses any other key.
+- `GET_DATA` answers every module asked for, never with null.
+- `REGISTER_DATA_LISTENER` sends a snapshot at once. After that, changed modules are pushed every 10 s for media,
+  battery and audio, and every 30 s for the rest.
+- Keys follow System Bridge's `system-bridge_client_<43><checksum>` format, and only their SHA-256 hashes are kept,
+  in `system-bridge-keys.json` beside the identity. Pairing codes last ten minutes, in memory.
+- The uuid clients know the computer by is its KDE Connect id written as a UUID. The same uuid is in the mDNS TXT
+  record of `_system-bridge._tcp`, with `ip` and `port`.
+- Media folders are the home folder's usual ones. A path is followed through links and refused outside its folder.
+  Files are served by HMAC-signed links that last a day at most.
+
 ## Next
 
 - Keeping contacts and messages in the store, so they show while the phone is away.
-- System Bridge: this computer's hardware and system readings, and its controls, over a WebSocket API.
 - A daemon on every computer reporting to a central one, so the page shows every machine.

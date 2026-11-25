@@ -1,6 +1,6 @@
-// Settings: this device's name, history, which notifications show, the link to Home Assistant, the plugins, import and
-// export, and the sections of whichever host the page runs on: connections on a phone, sync, backups, MCP and the
-// desktop's own settings.
+// Settings: this device's name, history, which notifications show, the link to Home Assistant, the System Bridge
+// server, the plugins, import and export, and the sections of whichever host the page runs on: connections on a
+// phone, sync, backups, MCP and the desktop's own settings.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ import { notice_kinds, notice_setting } from "../../shared/notices.ts";
 import { attempt, calls, data_watch, page, set_setting, show_error, succeeds, use_data, use_settings } from "../api.ts";
 import { home_assistant_summary } from "../computer/ComputerView.tsx";
 import { PluginRows } from "../plugins.tsx";
+import { system_bridge_section } from "./SystemBridgeSettings.tsx";
 
 // ── Files ────────────────────────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ export function SettingsView({ server_sections = [] }: { server_sections?: Setti
                   },
                   notifications_section(values),
                   home_assistant_section(values),
+                  system_bridge_section(values),
                   { id: "plugins", heading: "Plugins", hint: "What X-Control does with your devices; turn off what you do not want. Plugins from the plugins folder run with X-Control's full rights.", content: <PluginRows /> },
                   import_export_section(),
                 ],

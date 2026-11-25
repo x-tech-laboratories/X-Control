@@ -18,6 +18,10 @@ let
   state_directory = "/var/lib/x-control";
 
   config_file = (pkgs.formats.json { }).generate "x-control.json" {
+    system_bridge = {
+      enabled = cfg.systemBridge.enable;
+      port = cfg.systemBridge.port;
+    };
     database = "${state_directory}/control.db";
     backups_folder = "${state_directory}/backups";
     device_name = cfg.deviceName;
@@ -121,6 +125,22 @@ in
       };
     };
 
+    systemBridge = {
+      enable = mkEnableOption "a System Bridge server, so Home Assistant's System Bridge integration reads and controls this machine; Settings on the page can still change it";
+
+      port = mkOption {
+        type = types.port;
+        default = 9170;
+        description = "The port System Bridge clients reach the server on.";
+      };
+
+      openFirewall = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Open the System Bridge port in the firewall.";
+      };
+    };
+
     passwordHashFile = mkOption {
       type = types.str;
       example = "/etc/x-control/password-hash";
@@ -181,10 +201,15 @@ in
       };
     };
 
-    networking.firewall = mkIf cfg.openFirewall {
-      allowedTCPPorts = [ cfg.port ];
-      allowedTCPPortRanges = [ { from = 1716; to = 1764; } ];
-      allowedUDPPortRanges = [ { from = 1716; to = 1764; } ];
-    };
+    networking.firewall = lib.mkMerge [
+      (mkIf cfg.openFirewall {
+        allowedTCPPorts = [ cfg.port ];
+        allowedTCPPortRanges = [ { from = 1716; to = 1764; } ];
+        allowedUDPPortRanges = [ { from = 1716; to = 1764; } ];
+      })
+      (mkIf (cfg.systemBridge.enable && cfg.systemBridge.openFirewall) {
+        allowedTCPPorts = [ cfg.systemBridge.port ];
+      })
+    ];
   };
 }
