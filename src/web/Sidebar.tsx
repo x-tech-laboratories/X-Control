@@ -1,4 +1,5 @@
-// The sidebar: Devices folding open onto each paired device, Commands and History, and the sync button at the foot.
+// The sidebar: Devices folding open onto each paired device, This computer, Commands and History, and the sync button
+// at the foot.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
@@ -13,7 +14,7 @@ import { data_watch, page } from "./api.ts";
 // Where the folded sections are kept.
 export const sidebar_pref = "x-control-sidebar-collapsed";
 
-// Devices with a row for each paired device and each asking to pair, then Commands and History.
+// Devices with a row for each paired device and each asking to pair, then This computer, Commands and History.
 export function sidebar_sections(devices: DeviceView[]): ShellSection[] {
   const listed = devices.filter((device) => device.pair_state === "paired" || device.pair_state === "incoming");
   return [
@@ -23,6 +24,7 @@ export function sidebar_sections(devices: DeviceView[]): ShellSection[] {
       href: "#/devices",
       children: listed.length ? listed.map((device) => ({ id: device.id, label: device.name, href: `#/devices/${device.id}` })) : undefined,
     },
+    { id: "computer", label: "This computer", href: "#/computer" },
     { id: "commands", label: "Commands", href: "#/commands" },
     { id: "history", label: "History", href: "#/history" },
   ];

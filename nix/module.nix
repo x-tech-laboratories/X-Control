@@ -23,6 +23,17 @@ let
     device_name = cfg.deviceName;
     kdeconnect = { discovery = cfg.discovery; };
     notify_channels = cfg.notifyChannels;
+    home_assistant = {
+      enabled = cfg.homeAssistant.enable;
+      broker = cfg.homeAssistant.broker;
+      username = cfg.homeAssistant.username;
+      discovery_prefix = cfg.homeAssistant.discoveryPrefix;
+      base_topic = cfg.homeAssistant.baseTopic;
+    }
+    // lib.optionalAttrs (cfg.homeAssistant.passwordFile != null) {
+      # systemd hands the password over as a credential, so the dynamic user can read it.
+      password_credential = "mqtt-password";
+    };
   };
 in
 {
@@ -74,6 +85,42 @@ in
       description = "Where the server's notifications go, such as a phone's pairing request: ntfy, webhook, mail or Apprise entries, each secret read from a file.";
     };
 
+    homeAssistant = {
+      enable = mkEnableOption "publishing this server's readings and controls to Home Assistant over MQTT; Settings on the page can still change it";
+
+      broker = mkOption {
+        type = types.str;
+        default = "";
+        example = "mqtt://homeassistant.local:1883";
+        description = "The MQTT broker Home Assistant listens on, as mqtt:// or mqtts://.";
+      };
+
+      username = mkOption {
+        type = types.str;
+        default = "";
+        description = "The name X-Control signs in to the broker with.";
+      };
+
+      passwordFile = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "/var/lib/secrets/x-control-mqtt";
+        description = "A file holding the broker's password.";
+      };
+
+      discoveryPrefix = mkOption {
+        type = types.str;
+        default = "homeassistant";
+        description = "The topic Home Assistant reads MQTT discovery from.";
+      };
+
+      baseTopic = mkOption {
+        type = types.str;
+        default = "x-control";
+        description = "The topic this server's readings are published under, followed by its KDE Connect id.";
+      };
+    };
+
     passwordHashFile = mkOption {
       type = types.str;
       example = "/etc/x-control/password-hash";
@@ -102,7 +149,10 @@ in
         DynamicUser = true;
         StateDirectory = "x-control";
         StateDirectoryMode = "0700";
-        LoadCredential = [ "password-hash:${cfg.passwordHashFile}" ];
+        LoadCredential = [
+          "password-hash:${cfg.passwordHashFile}"
+        ]
+        ++ lib.optional (cfg.homeAssistant.passwordFile != null) "mqtt-password:${cfg.homeAssistant.passwordFile}";
         Restart = "always";
         RestartSec = "5s";
 

@@ -90,6 +90,123 @@ export interface MountServices {
   unmount(folder: string): Promise<void>;
 }
 
+// ── Readings ─────────────────────────────────────────────────────────────────
+
+export interface CpuReading {
+  // How busy the processor was since the last reading, from 0 to 100, overall and per core.
+  busy: number;
+  cores_busy: number[];
+  // The load averages over 1, 5 and 15 minutes.
+  load: [number, number, number];
+  cores: number;
+  model: string;
+}
+
+export interface MemoryReading {
+  total_bytes: number;
+  available_bytes: number;
+  swap_total_bytes: number;
+  swap_free_bytes: number;
+}
+
+export interface DiskReading {
+  // Where it is mounted, such as "/" or "/home".
+  mount: string;
+  device: string;
+  file_system: string;
+  total_bytes: number;
+  free_bytes: number;
+}
+
+// What a disk has read and written since the computer started, for rates worked out between readings.
+export interface DiskCounters {
+  device: string;
+  read_bytes: number;
+  written_bytes: number;
+}
+
+export interface NetworkInterface {
+  name: string;
+  is_up: boolean;
+  addresses: string[];
+  // Since the computer started.
+  received_bytes: number;
+  sent_bytes: number;
+}
+
+export interface WifiReading {
+  interface: string;
+  network: string | null;
+  signal_dbm: number | null;
+}
+
+export interface TemperatureReading {
+  // Stable across restarts, such as "k10temp_tctl".
+  id: string;
+  label: string;
+  celsius: number;
+}
+
+export interface GpuReading {
+  id: string;
+  name: string;
+  busy: number | null;
+  memory_used_bytes: number | null;
+  memory_total_bytes: number | null;
+}
+
+// Whether a program is using the camera, the microphone or the speakers now.
+export interface DevicesInUse {
+  camera: boolean;
+  microphone: boolean;
+  speakers: boolean;
+}
+
+export interface ComputerReadings {
+  cpu(): Promise<CpuReading>;
+  memory(): Promise<MemoryReading>;
+  disks(): Promise<DiskReading[]>;
+  disk_counters(): Promise<DiskCounters[]>;
+  interfaces(): Promise<NetworkInterface[]>;
+  // Null without a wireless card.
+  wifi(): Promise<WifiReading | null>;
+  temperatures(): Promise<TemperatureReading[]>;
+  gpus(): Promise<GpuReading[]>;
+  // Seconds since the computer started.
+  uptime(): Promise<number>;
+  // Whether an update waits for a restart to take effect, such as a new kernel.
+  restart_needed(): Promise<boolean>;
+  user(): string;
+  devices_in_use(): Promise<DevicesInUse>;
+  // Seconds since the user last touched the keyboard or mouse, or null where the session does not say.
+  idle_seconds(): Promise<number | null>;
+}
+
+// ── Power ────────────────────────────────────────────────────────────────────
+
+export type PowerAction = "shutdown" | "restart" | "suspend" | "hibernate";
+
+export interface PowerServices {
+  act(action: PowerAction): Promise<void>;
+  // Null where power-profiles-daemon is not running.
+  profiles(): Promise<{ active: string; available: string[] } | null>;
+  set_profile(name: string): Promise<void>;
+  // The screen's brightness from 0 to 100, or null without a backlight that can be set.
+  brightness(): Promise<number | null>;
+  set_brightness(percent: number): Promise<void>;
+  // Keeps the computer from sleeping or blanking its screen while on.
+  keep_awake(on: boolean): Promise<void>;
+  is_kept_awake(): boolean;
+}
+
+// ── Services ─────────────────────────────────────────────────────────────────
+
+// A systemd unit of the system, or of the user when "user" is true.
+export interface UnitServices {
+  state(unit: string, user: boolean): Promise<string>;
+  set_running(unit: string, user: boolean, running: boolean): Promise<void>;
+}
+
 // ── Computer ─────────────────────────────────────────────────────────────────
 
 export interface BatteryReading {
@@ -114,6 +231,9 @@ export interface SystemServices {
   volume: VolumeServices;
   input: InputServices;
   files: MountServices;
+  readings: ComputerReadings;
+  power: PowerServices;
+  units: UnitServices;
   // Runs a command line the user wrote, as their own shell would.
   run_shell(command: string): Promise<{ exit_code: number; output: string }>;
   // Opens a link or a file in the program the desktop picks.

@@ -14,15 +14,40 @@ import { app_info, plugins_setting } from "./plugins/manifests.ts";
 
 export type Settings = Record<string, unknown>;
 
+// The link to Home Assistant over MQTT, which each computer makes for itself.
+export const home_assistant_setting_defaults: Settings = {
+  "home_assistant.enabled": false,
+  // Such as mqtt://homeassistant.local:1883.
+  "home_assistant.broker": "",
+  "home_assistant.username": "",
+  "home_assistant.password": "",
+  "home_assistant.discovery_prefix": "homeassistant",
+  "home_assistant.base_topic": "x-control",
+  // Seconds between readings.
+  "home_assistant.interval": 10,
+};
+
 export const common_setting_defaults: Settings = {
   // How long History keeps versions of a run command, in days.
   "history.keep_days": 180,
   [plugins_setting]: {},
   ...notice_setting_defaults,
+  ...home_assistant_setting_defaults,
 };
 
 // Settings that belong to one device: they never sync, and an export leaves them out.
-export const device_setting_keys = Object.keys(notice_setting_defaults);
+export const device_setting_keys = [...Object.keys(notice_setting_defaults), ...Object.keys(home_assistant_setting_defaults)];
+
+// Settings never given back to the page or other programs; they read a placeholder while one is set.
+export const secret_setting_keys = ["home_assistant.password"];
+
+// What a secret setting reads while one is set; writing it back leaves the secret as it was.
+export const hidden_secret = "••••••••";
+
+// The settings with each secret one set replaced by the placeholder.
+export function hide_secret_settings(settings: Settings): Settings {
+  return Object.fromEntries(Object.entries(settings).map(([key, value]) => [key, secret_setting_keys.includes(key) && typeof value === "string" && value !== "" ? hidden_secret : value]));
+}
 
 const settings_kind = "settings";
 const settings_version = 1;
@@ -35,6 +60,7 @@ function get_stored(database: SqlDatabase): Settings {
 }
 
 function set_setting(database: SqlDatabase, key: string, value: unknown): void {
+  if (secret_setting_keys.includes(key) && value === hidden_secret) return;
   database.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, JSON.stringify(value));
 }
 
@@ -64,7 +90,7 @@ export const settings_feature = define_feature({
   api: {
     get_settings: {
       description:
-        "The settings stored, by key; a key missing here has its default. history.keep_days is how long run commands' versions are kept; notify.<kind> turns a kind of notification on or off on this device; plugins holds each plugin's on or off and settings by plugin id.",
+        "The settings stored, by key; a key missing here has its default. history.keep_days is how long run commands' versions are kept; notify.<kind> turns a kind of notification on or off on this device; plugins holds each plugin's on or off and settings by plugin id; home_assistant.* is this device's link to Home Assistant over MQTT, its password hidden.",
       params: [],
     },
     set_setting: {

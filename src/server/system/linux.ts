@@ -8,12 +8,13 @@ import { join } from "node:path";
 
 import { not_installed_exit_code, run_program } from "@x-tech-laboratories/x-libs/agent/programs";
 
+import { linux_power, linux_readings, linux_units } from "./linux_readings.ts";
 import type { AudioSink, BatteryReading, InputServices, MediaPlayer, Modifier, MountServices, SystemServices } from "./services.ts";
 
 // ── Programs ─────────────────────────────────────────────────────────────────
 
 // Runs a program and gives its output, throwing in plain words when it is missing or fails.
-async function output_of(argv: string[], stdin: string | null = null): Promise<string> {
+export async function output_of(argv: string[], stdin: string | null = null): Promise<string> {
   const result = await run_program(argv, { stdin, stdout: "keep", stderr: "keep" });
   if (result.exit_code === not_installed_exit_code) throw new Error(`${argv[0]} is not installed`);
   if (result.exit_code !== 0) throw new Error(`${argv[0]} failed: ${result.stderr.trim() || `exit code ${result.exit_code}`}`);
@@ -220,6 +221,9 @@ export function linux_services(): SystemServices {
     },
     input: is_wayland() ? ydotool_input() : xdotool_input(),
     files: sshfs_mounts(),
+    readings: linux_readings(),
+    power: linux_power(),
+    units: linux_units(),
     run_shell: async (command) => {
       const result = await run_program(["sh", "-c", command], { stdout: "keep", stderr: "keep" });
       return { exit_code: result.exit_code, output: (result.stdout + result.stderr).trim() };

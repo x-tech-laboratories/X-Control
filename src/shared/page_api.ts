@@ -10,6 +10,7 @@ import type { ConnectionClient } from "@x-tech-laboratories/x-libs/connection_pr
 import type { LocalMcpClient } from "@x-tech-laboratories/x-libs/local_mcp_protocol";
 import { sync_device_method_names, type SyncDeviceMethods, type SyncStatus } from "@x-tech-laboratories/x-libs/sync_protocol";
 
+import type { ComputerMethods } from "./computer/api.ts";
 import type { DesktopMethods } from "./desktop.ts";
 import type { DeviceMethods } from "./devices/api.ts";
 import type { StoreMethods } from "./store.ts";
@@ -25,8 +26,8 @@ export const desktop_api_name = "x_control_desktop";
 
 // ── Calls ────────────────────────────────────────────────────────────────────
 
-// Every call the page makes on its daemon: the stored data, and the devices it reaches.
-export type ControlMethods = StoreMethods & DeviceMethods;
+// Every call the page makes on its daemon: the stored data, the devices it reaches, and the computer it runs on.
+export type ControlMethods = StoreMethods & DeviceMethods & ComputerMethods;
 
 // Sync with a server and backups of the device's own database; a browser is already on the server.
 export type SyncAndBackupMethods = SyncDeviceMethods & BackupMethods;

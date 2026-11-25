@@ -1,12 +1,13 @@
 // What X-Control lets its daemon's plugins reach: a capability for each feature, such as battery or clipboard, that
-// takes and sends KDE Connect packets for a device, the actions the page and other programs can run through it, and
-// the services of the computer the daemon runs on.
+// takes and sends KDE Connect packets for a device, the actions the page and other programs can run through it, the
+// readings and controls of this computer that Home Assistant sees, and the services of the computer the daemon runs on.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
 import type { ParamSpec } from "@x-tech-laboratories/x-libs/api_spec";
 import type { Plugin } from "@x-tech-laboratories/x-libs/plugins";
 
+import type { EntityKind, ReadingValue } from "../../shared/computer/model.ts";
 import type { DeviceView } from "../../shared/devices/model.ts";
 import type { Notice } from "../../shared/notices.ts";
 import type { Packet, PacketBody } from "../../shared/kdeconnect/packet.ts";
@@ -51,6 +52,43 @@ export interface Capability {
   actions?: Record<string, DeviceAction>;
 }
 
+// ── Entities ─────────────────────────────────────────────────────────────────
+
+// A reading with more about it, such as each core's load beside the processor's.
+export interface DetailedReading {
+  value: ReadingValue;
+  attributes: Record<string, unknown>;
+}
+
+export type Reading = ReadingValue | DetailedReading;
+
+// One reading or control of this computer, published to Home Assistant and shown on the page.
+export interface Entity {
+  // Unique within its plugin, such as "usage".
+  id: string;
+  name: string;
+  kind: EntityKind;
+  icon?: string;
+  unit?: string;
+  device_class?: string;
+  state_class?: "measurement" | "total" | "total_increasing";
+  category?: "diagnostic" | "config";
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  // Seconds between reads, for readings that cost more than a file read; every pass when left out.
+  every?: number;
+  read?(): Reading | Promise<Reading>;
+  // A switch is given a boolean, a number a number, a select or text a string and a button null.
+  set?(value: ReadingValue): void | Promise<void>;
+}
+
+// A plugin's entities, listed again now and then, since disks, network cards and services come and go.
+export interface EntitySource {
+  list(): Entity[] | Promise<Entity[]>;
+}
+
 // ── Services ─────────────────────────────────────────────────────────────────
 
 export interface RunCommand {
@@ -84,7 +122,7 @@ export interface ControlPluginApi {
     // The run commands catalogue changed, so devices can be told the new list.
     "commands.changed": () => void;
   };
-  providers: { capability: Capability };
+  providers: { capability: Capability; entities: EntitySource };
   services: ControlServices;
 }
 

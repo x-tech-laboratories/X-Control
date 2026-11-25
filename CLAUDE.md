@@ -19,6 +19,8 @@ on Android in Capacitor. Read `README.md` first, then `docs/architecture.md`. It
   Valent and their phone are there. Tests and the dev config use ports above 40000 and turn discovery off.
 - Each Valent or KDE Connect feature is a plugin in `src/server/plugins/` with its manifest in
   `src/shared/plugins/manifests.ts`, its state in `src/shared/plugins/states.ts` and its panel in `src/web/devices/panels.tsx`.
+- Each LNXlink feature is a plugin providing `entities`, readings and controls of this computer that show under This
+  computer and go to Home Assistant over MQTT; its reads go through `SystemServices.readings`, `power` or `units`.
 - Plugins reach the computer only through `SystemServices`; the Linux side runs programs through X-Libs, and only the run commands the user wrote go through a shell.
 - Code in `src/shared/` runs in the daemon and in the page: no DOM, no `node:` imports.
 - A call that only reads is named `list_`, `get_`, `search_`, `lookup_` or `export_`; any other name announces a change.
