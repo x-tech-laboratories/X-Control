@@ -1,0 +1,13 @@
+{
+  "appId": "com.xtechlaboratories.xcontrol",
+  "appName": "X-Control",
+  "webDir": "out/android",
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

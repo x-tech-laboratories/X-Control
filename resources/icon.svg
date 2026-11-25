@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- A phone cut out of the X-Tech hexagon, its button left standing; one path, so Android's vector icons can draw it too. -->
+  <title>X-Control</title>
+  <path fill="#0088ff" fill-rule="evenodd" d="M16.5 5.153 1 32 16.5 58.848 47.5 58.848 63 32 47.5 5.153Z M26 15H38A3.5 3.5 0 0 1 41.5 18.5V45.5A3.5 3.5 0 0 1 38 49H26A3.5 3.5 0 0 1 22.5 45.5V18.5A3.5 3.5 0 0 1 26 15Z M34 43.5A2 2 0 1 1 30 43.5 2 2 0 1 1 34 43.5Z"/>
+</svg>

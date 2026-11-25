@@ -1,0 +1,43 @@
+# Architecture
+
+## Layout
+
+| Folder | Holds |
+| --- | --- |
+| `src/shared` | the store (settings, paired devices, run commands, history), packet shapes, plugin manifests and states, the page's API types |
+| `src/server/kdeconnect` | the KDE Connect protocol: identity and certificate, LAN discovery and handshake, links and payloads, the device manager |
+| `src/server/plugins` | the bundled plugins, one file each, on the X-Libs plugin host |
+| `src/server/system` | what plugins ask of the computer: the Linux desktop, or a pretend one for tests and the dev server |
+| `src/server` | the control core (`control.ts`), the web server and its config |
+| `src/daemon` | the desktop app's daemon, on a Unix socket |
+| `src/main`, `src/preload` | Electron's window, tray and login entry |
+| `src/web` | the React page every target draws |
+
+## KDE Connect, protocol version 8
+
+- A device broadcasts its identity over UDP to port 1716. A device that hears it connects over TCP to the port in
+  it and sends its own identity in plain text, naming the device it meant.
+- TLS then starts with the roles reversed: the device that connected takes the server's part. Certificates are
+  self-signed EC P-256, their common name the device id. A paired device must show the certificate it was paired
+  with; an unpaired one is trusted for now and may only ask to pair.
+- Over TLS both sides send their identity again; a device whose id or version changed, or whose certificate names
+  another device, is refused.
+- Pairing sends `kdeconnect.pair` with the request's time; both sides show the first eight hex digits of SHA-256 over
+  both public keys, the larger first, and that time. An unanswered request lapses after 30 seconds.
+- A packet with a payload offers it on a port of its own; the receiver connects and takes TLS's client part, and the
+  certificate must be the same as on the link.
+
+## Plugins
+
+A daemon plugin provides a `capability`: the packet types it takes and sends (announced in this device's identity),
+what to do when a paired device connects or sends one, and named actions the page, the API and MCP run through
+`run_device_action`. What it learns of a device it keeps as that device's state, which the page reads under
+`plugins.<id>`. A page plugin with the same manifest fills the device page's `device_panel` slot. On or off and each
+plugin's settings are kept in the `plugins` setting, which both sides read.
+
+## Next
+
+- Valent's remaining plugins: SMS and contacts, SFTP, the remote mouse, keyboard and presenter, mDNS discovery.
+- LNXlink: this computer's sensors and controls published to Home Assistant over MQTT (X-Libs has `server/mqtt_discovery`).
+- System Bridge: this computer's hardware and system readings, and its controls, over a WebSocket API.
+- A daemon on every computer reporting to a central one, so the page shows every machine.

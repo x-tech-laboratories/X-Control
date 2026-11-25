@@ -1,0 +1,13 @@
+{
+  "database": "dev-data/control.db",
+  "device_name": "X-Control dev server",
+  "system": "sample",
+  "kdeconnect": {
+    "discovery": false,
+    "allow_loopback": true,
+    "announce_port": 41799,
+    "tcp_ports": [41716, 41730],
+    "payload_ports": [41731, 41760]
+  },
+  "notify_channels": []
+}
