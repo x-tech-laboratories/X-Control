@@ -66,6 +66,35 @@ export const presenter_manifest = bundled("presenter", "Presenter", "Use a phone
   { key: "pointer_speed", label: "Pointer speed", hint: "How far the pointer moves as the phone turns.", type: "number", default: 1000 },
 ]);
 
+// ── This computer ────────────────────────────────────────────────────────────
+
+// Readings and controls of the computer the daemon runs on, shown under This computer and published to Home Assistant.
+
+export const processor_manifest = bundled("processor", "Processor and memory", "Read this computer's processor, graphics and memory load, and when it started.");
+
+export const disks_manifest = bundled("disks", "Disks", "Read how full each disk is, and how fast they read and write.");
+
+export const network_manifest = bundled("network", "Network", "Read each network card's traffic, this computer's address and its Wi-Fi signal.", [
+  { key: "virtual_interfaces", label: "Virtual network cards", hint: "Also read containers' and virtual machines' network cards, such as docker0 or virbr0.", type: "switch", default: false },
+]);
+
+export const temperatures_manifest = bundled("temperatures", "Temperatures", "Read the temperature sensors of the processor, disks and other parts.");
+
+export const power_manifest = bundled("power", "Power", "Shut down, restart or suspend this computer, keep it awake, and set its power profile and screen brightness.");
+
+export const session_manifest = bundled("session", "Session", "See whether the session is locked or idle and whether the camera, microphone or speakers are in use; lock and unlock it.");
+
+export const desktop_controls_manifest = bundled("desktop_controls", "Desktop controls", "Send this computer notifications, open links, type text, and control its media and speakers.", [
+  { key: "publish_clipboard", label: "Show the clipboard", hint: "Read what is copied on this computer, for Home Assistant and This computer to show. Setting the clipboard works either way.", type: "switch", default: false },
+]);
+
+export const command_buttons_manifest = bundled("command_buttons", "Command buttons", "A button for each of your run commands, under This computer and in Home Assistant.");
+
+export const system_services_manifest = bundled("system_services", "Services", "Start and stop the systemd services you name, and see whether they run.", [
+  { key: "system_units", label: "System services", hint: "Unit names separated by commas, such as nginx.service. Starting and stopping them needs the right to.", type: "text", default: "" },
+  { key: "user_units", label: "Your services", hint: "Your own units separated by commas, such as syncthing.service.", type: "text", default: "" },
+]);
+
 export const bundled_manifests: PluginManifest[] = [
   ping_manifest,
   battery_manifest,
@@ -84,4 +113,13 @@ export const bundled_manifests: PluginManifest[] = [
   sftp_manifest,
   mousepad_manifest,
   presenter_manifest,
+  processor_manifest,
+  disks_manifest,
+  network_manifest,
+  temperatures_manifest,
+  power_manifest,
+  session_manifest,
+  desktop_controls_manifest,
+  command_buttons_manifest,
+  system_services_manifest,
 ];

@@ -39,6 +39,7 @@
     "@x-tech-laboratories/x-libs": "^0.79.0",
     "bonjour-service": "^1.4.4",
     "fastify": "^5.12.8",
+    "mqtt": "^5.16.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "reflect-metadata": "^0.2.2"
@@ -54,6 +55,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "^5.1.1",
+    "aedes": "^1.2.0",
     "drizzle-kit": "^1.0.0-rc.6",
     "electron": "^45.5.0",
     "electron-vite": "^6.0.0",

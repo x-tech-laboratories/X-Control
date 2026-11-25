@@ -11,7 +11,7 @@ import { commands_feature } from "./commands/store.ts";
 import { devices_feature } from "./devices/store.ts";
 import { command_history, history_feature, record_history } from "./history/store.ts";
 import { is_read_only } from "./page_api.ts";
-import { common_setting_defaults, settings_feature } from "./settings.ts";
+import { common_setting_defaults, hide_secret_settings, settings_feature } from "./settings.ts";
 
 // ── Features ─────────────────────────────────────────────────────────────────
 
@@ -40,14 +40,14 @@ export function open_store(database: SqlDatabase): void {
 // ── Calls ────────────────────────────────────────────────────────────────────
 
 function get_settings(database: SqlDatabase): Record<string, unknown> {
-  return { ...common_setting_defaults, ...settings_feature.methods.get_settings(database) };
+  return hide_secret_settings({ ...common_setting_defaults, ...settings_feature.methods.get_settings(database) });
 }
 
 const all_methods = {
   ...settings_feature.methods,
   ...commands_feature.methods,
   ...history_feature.methods,
-  // Every setting, the ones never set at their defaults, so a page needs no list of defaults of its own.
+  // Every setting, the ones never set at their defaults, so a page needs no list of defaults of its own; secrets hidden.
   get_settings,
 };
 

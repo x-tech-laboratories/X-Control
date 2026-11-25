@@ -10,6 +10,7 @@ export const notice_kinds = [
   { kind: "battery_low", label: "Low battery", hint: "A paired device's battery runs low." },
   { kind: "file_received", label: "Files and links received", hint: "A device shares a file, a link or text with this one." },
   { kind: "find_my_device", label: "Find my device", hint: "A device rings this one to find it." },
+  { kind: "remote_message", label: "Messages from Home Assistant", hint: "Home Assistant sends this computer a notification." },
 ] as const;
 
 export type NoticeKind = (typeof notice_kinds)[number]["kind"];

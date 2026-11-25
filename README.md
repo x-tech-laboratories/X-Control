@@ -4,7 +4,8 @@ Remote access and control for your devices. X-Control reaches phones, tablets an
 protocol, so it pairs with the KDE Connect app on Android, with KDE Connect, Valent and GSConnect on Linux desktops,
 and with other X-Control daemons. From its page you see a phone's battery, signal and notifications, answer messages,
 ring it, send it links, text and files, share the clipboard, run commands on either side, and control media players
-and speakers both ways.
+and speakers both ways. It also reads the computer it runs on (processor, memory, disks, network, temperatures,
+power and the session) and offers its controls, under This computer and in Home Assistant over MQTT, as LNXlink does.
 
 It follows the [X-Tech Application Standard](https://x-tech-laboratories.github.io/standards/application/): one
 daemon holds all the work, and the web page, the desktop app and the Android app are UIs onto it.
@@ -34,8 +35,28 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Presenter | a phone moves the pointer as a slide remote | — |
 
 Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address. Not yet: Bluetooth.
-Contacts and messages are kept while the daemon runs and fetched again when the phone connects. Features from LNXlink
-and System Bridge come next; see [docs/architecture.md](docs/architecture.md).
+Contacts and messages are kept while the daemon runs and fetched again when the phone connects.
+
+### This computer and Home Assistant
+
+These plugins read the computer the daemon runs on and offer its controls. Their readings and controls show under
+This computer and through the API and MCP (`list_readings`, `set_control`). Once Settings → Home Assistant links to
+an MQTT broker, they are published to Home Assistant with MQTT discovery, under one device named after the computer.
+
+| Plugin | Readings | Controls |
+| --- | --- | --- |
+| Processor and memory | processor and graphics load, load average, memory and swap used, when it started, restart needed | — |
+| Disks | how full each disk is, read and write speed | — |
+| Network | download and upload per card, IP address, Wi-Fi signal | — |
+| Temperatures | every hwmon sensor | — |
+| Power | battery and charging | shut down, restart, suspend, hibernate, keep awake, power profile, screen brightness |
+| Session | idle time, user, camera, microphone and speakers in use | locked |
+| Desktop controls | the media playing, the clipboard (off unless turned on) | notifications from Home Assistant, open a link, type text, play or pause, next, previous, volume, mute, sound output |
+| Command buttons | — | a button for each run command |
+| Services | whether each systemd unit named runs | start and stop it |
+
+A sleeping NVIDIA card in a laptop is left asleep rather than woken by `nvidia-smi`. LNXlink modules not yet taken
+over are listed in [docs/TODO.md](docs/TODO.md); System Bridge comes next, see [docs/architecture.md](docs/architecture.md).
 
 ## Running it
 
@@ -66,16 +87,20 @@ Sign in to a server with an account from `npm run hash-password -- <name>`, whic
 | `kdeconnect.listen_port`, `announce_port` | the UDP ports | `1716` |
 | `kdeconnect.tcp_ports`, `payload_ports` | `[lowest, highest]` | `[1716, 1764]`, `[1739, 1764]` |
 | `notify_channels` | ntfy, webhook, mail or Apprise entries | none |
+| `home_assistant` | `enabled`, `broker`, `username`, `password_file` (or `password_credential`, a systemd credential's name), `discovery_prefix`, `base_topic`, `interval`; Settings overrides each field it sets | off |
 
 NixOS hosts use `services.x-control` from the flake's `nixosModules.default`. Phones and desktops reach the server's
-KDE Connect side on UDP and TCP 1716 to 1764, which `openFirewall` opens.
+KDE Connect side on UDP and TCP 1716 to 1764, which `openFirewall` opens. `services.x-control.homeAssistant` links the
+server to Home Assistant, its `passwordFile` handed over as a systemd credential.
 
 ## Desktop app
 
 The desktop app starts its own daemon on a Unix socket, which keeps devices connected with the window closed and
 shows their notifications on the desktop. It drives the desktop through the programs every desktop ships:
 `wl-clipboard` or `xclip`, `playerctl`, `pactl`, `loginctl`, `xdg-open`, `canberra-gtk-play`, `ydotool` (with its
-daemon) on Wayland or `xdotool` on X11 for remote input, and `sshfs` for a phone's files. A feature whose
+daemon) on Wayland or `xdotool` on X11 for remote input, and `sshfs` for a phone's files. This computer's readings
+come from `/proc` and `/sys`, with `nmcli`, `nvidia-smi`, `powerprofilesctl`, `brightnessctl`, `systemd-inhibit` and
+`systemctl` where present. A feature whose
 program is missing reports that in plain words and the rest keep working.
 
 ## Deviations from the standard

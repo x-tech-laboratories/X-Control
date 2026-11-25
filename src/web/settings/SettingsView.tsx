@@ -1,5 +1,6 @@
-// Settings: this device's name, history, which notifications show, the plugins, import and export, and the sections
-// of whichever host the page runs on: connections on a phone, sync, backups, MCP and the desktop's own settings.
+// Settings: this device's name, history, which notifications show, the link to Home Assistant, the plugins, import and
+// export, and the sections of whichever host the page runs on: connections on a phone, sync, backups, MCP and the
+// desktop's own settings.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ import { toast } from "@x-tech-laboratories/x-libs/web/react/toasts";
 import type { DesktopSettings } from "../../shared/desktop.ts";
 import { notice_kinds, notice_setting } from "../../shared/notices.ts";
 import { attempt, calls, data_watch, page, set_setting, show_error, succeeds, use_data, use_settings } from "../api.ts";
+import { home_assistant_summary } from "../computer/ComputerView.tsx";
 import { PluginRows } from "../plugins.tsx";
 
 // ── Files ────────────────────────────────────────────────────────────────────
@@ -72,6 +74,46 @@ function notifications_section(settings: Record<string, unknown>): SettingsSecti
             <Switch label={entry.label} checked={settings[notice_setting(entry.kind)] !== false} on_change={(on) => void set_setting(notice_setting(entry.kind), on)} />
           </SettingRow>
         ))}
+      </>
+    ),
+  };
+}
+
+// This computer's link to Home Assistant over MQTT, with how it stands now.
+function HomeAssistantStatusRow() {
+  const status = use_data((api) => api.get_home_assistant_status());
+  return status.data ? (
+    <SettingRow label="Status" hint="Home Assistant lists the entities under a device named after this computer.">
+      <span>{status.data.state === "off" ? "Off" : home_assistant_summary(status.data)}</span>
+    </SettingRow>
+  ) : null;
+}
+
+function home_assistant_section(settings: Record<string, unknown>): SettingsSection {
+  const text = (key: string): string => (typeof settings[key] === "string" ? (settings[key] as string) : "");
+  const field = (key: string, label: string, hint: string, placeholder: string, type = "text"): ReactNode => (
+    <SettingRow label={label} hint={hint}>
+      <CommitInput aria-label={label} type={type} autoComplete={type === "password" ? "new-password" : "off"} placeholder={placeholder} value={text(key)} on_commit={(event) => void set_setting(key, event.currentTarget.value.trim())} />
+    </SettingRow>
+  );
+  return {
+    id: "home-assistant",
+    heading: "Home Assistant",
+    hint: "Publish this computer's readings and controls, under This computer, to Home Assistant over MQTT, as LNXlink does. Each computer links on its own.",
+    content: (
+      <>
+        <SettingRow label="Link to Home Assistant" hint="Needs Home Assistant's MQTT integration and a broker, such as the Mosquitto add-on." as_label>
+          <Switch label="Link to Home Assistant" checked={settings["home_assistant.enabled"] === true} on_change={(on) => void set_setting("home_assistant.enabled", on)} />
+        </SettingRow>
+        {field("home_assistant.broker", "Broker", "The broker's address, as mqtt:// or mqtts:// with its port.", "mqtt://homeassistant.local:1883")}
+        {field("home_assistant.username", "Name", "The name X-Control signs in to the broker with.", "")}
+        {field("home_assistant.password", "Password", "Kept on this computer and never shown again.", "", "password")}
+        {field("home_assistant.discovery_prefix", "Discovery prefix", "The topic Home Assistant reads MQTT discovery from.", "homeassistant")}
+        {field("home_assistant.base_topic", "Base topic", "The topic readings are published under, followed by this computer's id.", "x-control")}
+        <SettingRow label="Read every" hint="How often readings are taken and published.">
+          <NumberField label="Read every" bare unit="seconds" min={1} value={Number(settings["home_assistant.interval"]) || 10} on_change={(seconds) => void set_setting("home_assistant.interval", seconds ?? 10)} />
+        </SettingRow>
+        <HomeAssistantStatusRow />
       </>
     ),
   };
@@ -197,6 +239,7 @@ export function SettingsView({ server_sections = [] }: { server_sections?: Setti
                     ),
                   },
                   notifications_section(values),
+                  home_assistant_section(values),
                   { id: "plugins", heading: "Plugins", hint: "What X-Control does with your devices; turn off what you do not want. Plugins from the plugins folder run with X-Control's full rights.", content: <PluginRows /> },
                   import_export_section(),
                 ],

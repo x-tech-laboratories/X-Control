@@ -6,7 +6,7 @@
 import { dirname, join, resolve } from "node:path";
 
 import type { DeviceType } from "../shared/kdeconnect/packet.ts";
-import type { NetworkOptions } from "./control.ts";
+import type { ControlOptions, NetworkOptions } from "./control.ts";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,8 @@ export interface ServerConfig {
   network: NetworkOptions;
   // ntfy, webhook, mail or Apprise entries, as X-Libs' read_channels takes them.
   notify_channels: unknown[];
+  // The link to Home Assistant over MQTT, for fields Settings leaves empty.
+  home_assistant: NonNullable<ControlOptions["home_assistant"]>;
 }
 
 interface RawConfig {
@@ -38,6 +40,7 @@ interface RawConfig {
   system?: unknown;
   kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown; mdns?: unknown };
   notify_channels?: unknown;
+  home_assistant?: { enabled?: unknown; broker?: unknown; username?: unknown; password_file?: unknown; password_credential?: unknown; discovery_prefix?: unknown; base_topic?: unknown; interval?: unknown };
 }
 
 function port_range(value: unknown): { lowest: number; highest: number } | undefined {
@@ -47,6 +50,21 @@ function port_range(value: unknown): { lowest: number; highest: number } | undef
 
 function optional_port(value: unknown): number | undefined {
   return Number.isInteger(value) ? (value as number) : undefined;
+}
+
+// The password comes from a file, or from a systemd credential by name, as the NixOS module hands it over.
+function read_home_assistant(raw: NonNullable<RawConfig["home_assistant"]>, credentials = process.env.CREDENTIALS_DIRECTORY): ServerConfig["home_assistant"] {
+  const text = (value: unknown): string | undefined => (typeof value === "string" && value ? value : undefined);
+  const found: ServerConfig["home_assistant"] = {};
+  if (typeof raw.enabled === "boolean") found.enabled = raw.enabled;
+  if (text(raw.broker)) found.broker = text(raw.broker);
+  if (text(raw.username)) found.username = text(raw.username);
+  if (text(raw.password_file)) found.password_file = resolve(text(raw.password_file)!);
+  else if (text(raw.password_credential) && credentials) found.password_file = join(credentials, text(raw.password_credential)!);
+  if (text(raw.discovery_prefix)) found.discovery_prefix = text(raw.discovery_prefix);
+  if (text(raw.base_topic)) found.base_topic = text(raw.base_topic);
+  if (typeof raw.interval === "number" && raw.interval >= 1) found.interval = raw.interval;
+  return found;
 }
 
 // The config as the server uses it, with every path made absolute and each missing field at its default.
@@ -77,5 +95,6 @@ export function read_config(raw: RawConfig): ServerConfig {
       allow_loopback: network.allow_loopback === true,
     },
     notify_channels: Array.isArray(raw.notify_channels) ? raw.notify_channels : [],
+    home_assistant: read_home_assistant(raw.home_assistant ?? {}),
   };
 }

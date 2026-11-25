@@ -1,20 +1,25 @@
 // X-Control's working core, the same in the server and the desktop daemon: this device's KDE Connect identity, the
-// plugin host with every bundled plugin, the paired and connected devices, and the network they are reached over.
+// plugin host with every bundled plugin, the paired and connected devices, the network they are reached over, this
+// computer's readings and controls, and the link that publishes them to Home Assistant.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { create_plugin_host, type PluginHost, type PluginRecords, type SettingValues } from "@x-tech-laboratories/x-libs/plugins";
 import type { SqlDatabase } from "@x-tech-laboratories/x-libs/sql";
 
+import type { ComputerMethods } from "../shared/computer/api.ts";
 import type { DeviceMethods } from "../shared/devices/api.ts";
 import { clean_device_name } from "../shared/kdeconnect/packet.ts";
 import { notice_setting, type Notice } from "../shared/notices.ts";
 import { app_info, plugins_setting } from "../shared/plugins/manifests.ts";
 import { commands_feature } from "../shared/commands/store.ts";
 import { paired_store } from "../shared/devices/store.ts";
-import { settings_feature } from "../shared/settings.ts";
+import { home_assistant_setting_defaults, settings_feature } from "../shared/settings.ts";
+import { create_readings, type Readings } from "./computer/readings.ts";
+import { create_home_assistant_bridge, default_home_assistant_settings, type HomeAssistantBridge, type HomeAssistantSettings, type SessionFactory } from "./home_assistant/bridge.ts";
 import { create_device_manager, type DeviceManager } from "./kdeconnect/devices.ts";
 import { fingerprint_of, load_identity, save_identity, type DeviceIdentity } from "./kdeconnect/identity.ts";
 import { create_lan_backend, type LanBackend, type LanOptions } from "./kdeconnect/lan.ts";
@@ -48,14 +53,20 @@ export interface ControlOptions {
   defaults?: { name?: string; type?: DeviceIdentity["type"] };
   // Plugins from the plugins folder, which join after the bundled ones.
   folder_plugins?: ControlPlugin[];
+  // The link to Home Assistant from the config file, used where Settings leaves a field empty; the password is read from its file.
+  home_assistant?: Partial<Omit<HomeAssistantSettings, "password">> & { password_file?: string };
+  // How the bridge reaches the broker; tests hand in their own.
+  mqtt_session?: SessionFactory;
   log?: (message: string) => void;
 }
 
 export interface Control {
-  methods: DeviceMethods;
+  methods: DeviceMethods & ComputerMethods;
   plugins: PluginHost<ControlPluginApi>;
   devices: DeviceManager;
   network: LanBackend;
+  readings: Readings;
+  home_assistant: HomeAssistantBridge;
   identity(): DeviceIdentity;
   // Brings the plugins in line with their records after Settings changed them, and tells devices of new commands.
   after_store_change(method: string): Promise<void>;
@@ -71,6 +82,33 @@ function plugin_records(database: SqlDatabase): PluginRecords {
 
 function same_values(first: SettingValues, second: SettingValues): boolean {
   return JSON.stringify(Object.entries(first).sort()) === JSON.stringify(Object.entries(second).sort());
+}
+
+// The link to Home Assistant as Settings has it, each field left empty taken from the config file.
+export function home_assistant_settings(stored: Record<string, unknown>, from_config: ControlOptions["home_assistant"] = {}): HomeAssistantSettings {
+  // Settings holds only the values the user set.
+  const value = (key: keyof HomeAssistantSettings): unknown => {
+    const set = stored[`home_assistant.${key}`];
+    return set !== undefined && set !== "" ? set : ((from_config as Record<string, unknown>)[key] ?? home_assistant_setting_defaults[`home_assistant.${key}`]);
+  };
+  const text = (key: keyof HomeAssistantSettings): string => (typeof value(key) === "string" ? (value(key) as string) : "");
+  let password = typeof stored["home_assistant.password"] === "string" ? (stored["home_assistant.password"] as string) : "";
+  if (!password && from_config.password_file) {
+    try {
+      password = readFileSync(from_config.password_file, "utf8").trim();
+    } catch {
+      password = "";
+    }
+  }
+  return {
+    enabled: value("enabled") === true,
+    broker: text("broker"),
+    username: text("username"),
+    password,
+    discovery_prefix: text("discovery_prefix") || default_home_assistant_settings.discovery_prefix,
+    base_topic: text("base_topic") || default_home_assistant_settings.base_topic,
+    interval: Math.max(1, Number(value("interval")) || default_home_assistant_settings.interval),
+  };
 }
 
 // ── Control ──────────────────────────────────────────────────────────────────
@@ -127,11 +165,31 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     on_warning: log,
   });
 
+  const stored_settings = (): Record<string, unknown> => settings_feature.methods.get_settings(options.database());
+  const readings = create_readings({
+    sources: () => plugins.providers("entities"),
+    interval: () => home_assistant_settings(stored_settings(), options.home_assistant).interval,
+    log,
+  });
+  const home_assistant = create_home_assistant_bridge({
+    readings,
+    settings: () => home_assistant_settings(stored_settings(), options.home_assistant),
+    device: () => ({ id: identity.device_id, name: identity.name, version: app_info.version }),
+    connect: options.mqtt_session,
+    on_status: options.on_change,
+    log,
+  });
+  let bridge_settings = JSON.stringify(home_assistant_settings(stored_settings(), options.home_assistant));
+
   for (const plugin of [...bundled_plugins, ...(options.folder_plugins ?? [])]) await plugins.add(plugin);
   await plugins.start();
-  plugins.watch.subscribe(options.on_change);
+  plugins.watch.subscribe(() => {
+    readings.forget_list();
+    options.on_change();
+  });
   await network.start();
   const mdns: MdnsDiscovery | null = options.network?.discovery !== false && options.network?.mdns !== false ? start_mdns({ identity: () => identity, announce: (address) => network.announce(address), on_warning: log }) : null;
+  home_assistant.start();
   log(`X-Control is ${identity.name} (${identity.device_id}) on TCP port ${network.tcp_port()}`);
 
   // Records changed on another page or device: each plugin is turned on or off and given its settings to match.
@@ -146,12 +204,14 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     }
   }
 
-  const methods: DeviceMethods = {
+  const methods: DeviceMethods & ComputerMethods = {
     get_this_device: async () => ({ id: identity.device_id, name: identity.name, type: identity.type, tcp_port: network.tcp_port(), fingerprint: fingerprint_of(identity.certificate), discovery: options.network?.discovery !== false }),
     rename_this_device: async (name) => {
       identity = { ...identity, name: clean_device_name(name) };
       save_identity(options.identity_file, identity);
       network.announce();
+      // Home Assistant shows the new name on the device.
+      readings.forget_list();
       options.on_change();
     },
     list_devices: async () => devices.list(),
@@ -164,6 +224,9 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     unpair_device: (id) => devices.unpair(id),
     refresh_devices: async () => network.announce(),
     connect_address: async (address) => network.announce(address.trim()),
+    list_readings: () => readings.refresh(),
+    set_control: (id, value) => readings.set(id, value),
+    get_home_assistant_status: async () => home_assistant.status(),
   };
 
   return {
@@ -171,12 +234,25 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     plugins,
     devices,
     network,
+    readings,
+    home_assistant,
     identity: () => identity,
     async after_store_change(method) {
-      if (method === "set_setting" || method === "import_settings") await follow_plugin_records();
-      if (/_command|commands/.test(method) || method === "restore_version") await plugins.call("commands.changed");
+      if (method === "set_setting" || method === "import_settings") {
+        await follow_plugin_records();
+        const now = JSON.stringify(home_assistant_settings(stored_settings(), options.home_assistant));
+        if (now !== bridge_settings) {
+          bridge_settings = now;
+          home_assistant.restart();
+        }
+      }
+      if (/_command|commands/.test(method) || method === "restore_version") {
+        readings.forget_list();
+        await plugins.call("commands.changed");
+      }
     },
     async stop() {
+      await home_assistant.stop();
       devices.stop();
       await mdns?.stop();
       await network.stop();

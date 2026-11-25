@@ -14,6 +14,7 @@ import { theme_choice } from "@x-tech-laboratories/x-libs/web/theme";
 
 import { data_watch, page, use_data } from "./api.ts";
 import { CommandsView } from "./commands/CommandsView.tsx";
+import { ComputerView } from "./computer/ComputerView.tsx";
 import { DeviceDetail } from "./devices/DeviceView.tsx";
 import { DevicesView } from "./devices/DevicesView.tsx";
 import { HistoryView } from "./history/HistoryView.tsx";
@@ -28,7 +29,7 @@ const brand_icon = "icon.svg";
 // Relative, so a server behind a proxy under a folder keeps it.
 const accounts = create_accounts_client({ base: "api" });
 
-const labels: Record<string, string> = { devices: "Devices", commands: "Commands", history: "History", settings: "Settings", account: "Your account" };
+const labels: Record<string, string> = { devices: "Devices", computer: "This computer", commands: "Commands", history: "History", settings: "Settings", account: "Your account" };
 
 // ── App ──────────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ function Pages({ me, on_sign_out }: { me: Me | null; on_sign_out?: () => void })
 
   const view = () => {
     if (section === "devices") return item ? <DeviceDetail id={item} /> : <DevicesView />;
+    if (section === "computer") return <ComputerView />;
     if (section === "commands") return <CommandsView />;
     if (section === "history") return <HistoryView />;
     if (section === "account" && me) return <AccountView client={accounts} />;

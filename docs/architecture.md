@@ -7,7 +7,9 @@
 | `src/shared` | the store (settings, paired devices, run commands, history), packet shapes, plugin manifests and states, the page's API types |
 | `src/server/kdeconnect` | the KDE Connect protocol: identity and certificate, LAN discovery and handshake, links and payloads, the device manager |
 | `src/server/plugins` | the bundled plugins, one file each, on the X-Libs plugin host |
-| `src/server/system` | what plugins ask of the computer: the Linux desktop, or a pretend one for tests and the dev server |
+| `src/server/system` | what plugins ask of the computer: the Linux desktop and its readings, or a pretend one for tests and the dev server |
+| `src/server/computer` | this computer's readings and controls, gathered from every plugin's entities |
+| `src/server/home_assistant` | the MQTT bridge that publishes them to Home Assistant |
 | `src/server` | the control core (`control.ts`), the web server and its config |
 | `src/daemon` | the desktop app's daemon, on a Unix socket |
 | `src/main`, `src/preload` | Electron's window, tray and login entry |
@@ -37,9 +39,21 @@ what to do when a paired device connects or sends one, and named actions the pag
 `plugins.<id>`. A page plugin with the same manifest fills the device page's `device_panel` slot. On or off and each
 plugin's settings are kept in the `plugins` setting, which both sides read.
 
+A plugin can also provide `entities`: readings and controls of this computer, each with a kind Home Assistant knows
+(sensor, binary_sensor, switch, button, number, select or text), listed again every minute and whenever plugins or
+run commands change, since disks and network cards come and go. The readings registry reads each when it falls due,
+its own `every` or the interval in Settings, shares one pass between callers, and fails a read after ten seconds.
+
+## Home Assistant
+
+The bridge keeps one MQTT connection, with a retained last will of `offline` on `<base_topic>/<device id>/status`.
+Each entity's config goes to `<prefix>/<kind>/x_control_<device id>/<plugin>_<entity>/config`, retained. Its value
+goes to `.../state`, its attributes to `.../attributes`, and commands arrive on `.../set`. Values are published as they
+change. Everything is announced again when `<prefix>/status` says `online`. A retained config under this device's node
+that no entity has now is cleared. The connection is tried again with backoff from one second to a minute.
+
 ## Next
 
 - Keeping contacts and messages in the store, so they show while the phone is away.
-- LNXlink: this computer's sensors and controls published to Home Assistant over MQTT (X-Libs has `server/mqtt_discovery`).
 - System Bridge: this computer's hardware and system readings, and its controls, over a WebSocket API.
 - A daemon on every computer reporting to a central one, so the page shows every machine.
