@@ -27,13 +27,10 @@ async function identity(name: string): Promise<DeviceIdentity> {
   return { device_id, name, type: "desktop", ...(await make_certificate(device_id)) };
 }
 
-function collect(stream: Readable): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
-    stream.on("error", reject);
-  });
+async function collect(stream: AsyncIterable<Uint8Array>): Promise<Buffer> {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return Buffer.concat(chunks);
 }
 
 // Every frame on a raw stream, parsed.

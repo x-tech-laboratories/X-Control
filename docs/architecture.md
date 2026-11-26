@@ -5,7 +5,8 @@
 | Folder | Holds |
 | --- | --- |
 | `src/shared` | the store (settings, paired devices, run commands, history), packet shapes, plugin manifests and states, the page's API types |
-| `src/server/kdeconnect` | the KDE Connect protocol: identity and certificate, LAN discovery and handshake, links and payloads, the device manager |
+| `src/shared/kdeconnect` | the KDE Connect protocol that runs anywhere: packets, LAN discovery and handshake, links and payloads, over a `NetSockets` interface that Node answers on a computer and X-Libs' `phone_sockets` in the phone app's service |
+| `src/server/kdeconnect` | the computer's side: identity and certificate files, Node's sockets (`node_sockets.ts`), Bluetooth, the device manager |
 | `src/server/plugins` | the bundled plugins, one file each, on the X-Libs plugin host |
 | `src/server/system` | what plugins ask of the computer: the Linux desktop and its readings, or a pretend one for tests and the dev server |
 | `src/server/computer` | this computer's readings and controls, gathered from every plugin's entities |
