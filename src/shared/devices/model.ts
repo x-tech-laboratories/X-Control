@@ -40,6 +40,8 @@ export interface ThisDevice {
   tcp_port: number;
   fingerprint: string;
   discovery: boolean;
+  // KDE Connect over Bluetooth: off, waiting (with why, such as another KDE Connect app holding it) or on.
+  bluetooth: { state: "off" | "waiting" | "on"; error: string | null };
 }
 
 // One thing a plugin can do to a device, such as ringing a phone.

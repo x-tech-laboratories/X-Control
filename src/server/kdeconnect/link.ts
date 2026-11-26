@@ -33,6 +33,8 @@ export interface DeviceLink {
   identity: IdentityBody;
   certificate: string;
   address: string;
+  // Which link a device keeps when it has two, as KDE Connect ranks them: LAN 20, Bluetooth 10.
+  priority: number;
   send(packet: Packet, payload?: OutgoingPayload): Promise<void>;
   close(): void;
   is_open(): boolean;
@@ -177,6 +179,7 @@ export function create_link(socket: TLSSocket, identity: IdentityBody, certifica
     identity,
     certificate,
     address,
+    priority: 20,
     is_open: () => open,
     set_handlers(given) {
       handlers = given;

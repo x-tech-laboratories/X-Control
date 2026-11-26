@@ -32,6 +32,28 @@
 - A packet with a payload offers it on a port of its own; the receiver connects and takes TLS's client part, and the
   certificate must be the same as on the link.
 
+## KDE Connect over Bluetooth
+
+- X-Control registers a BlueZ `Profile1` at `/org/xtech/XControl/bluez` for service UUID
+  `185f3df4-3268-4e3f-9fca-d4d5059915bd`, which BlueZ advertises over SDP. BlueZ hands over every RFCOMM connection
+  through `NewConnection`, whichever side made it, as a file descriptor.
+- `dbus-next` receives descriptors only through the native `usocket` module. Node opens the RFCOMM socket as a
+  libuv pipe handle through `process.binding("pipe_wrap")`, since `net.Socket` refuses Bluetooth sockets.
+- Every half minute, bonded devices offering the UUID that are not reached otherwise are asked to connect
+  (`Device1.ConnectProfile`), since Android looks only once when it starts.
+- Each connection carries KDE Connect's multiplexer, version 1, in 19-byte frames: a type, a big-endian length and a
+  channel UUID.
+  - The first frame is the version, then a 4096-byte grant on the default channel `a0d0aaf4-…`.
+  - No side may write beyond what it was granted, nor more than 4096 bytes in a frame.
+  - Grants are worked out on the next tick, since Node asks for more before it takes data out of the buffer.
+- Identities go both ways at once on the default channel, without TLS.
+  - The identity is ASCII-only, carries its certificate in PEM and has no `tcpPort`.
+  - The certificate must name the device and, once paired, match the one it paired with.
+  - The first packet after the identity waits a second, since Android drops what follows the identity in the same burst.
+- Payloads go on a channel the sender opens before the packet names it in `payloadTransferInfo.uuid`. The channel
+  closing ends the payload.
+- A device keeps its better link: LAN (20) over Bluetooth (10).
+
 ## Plugins
 
 A daemon plugin provides a `capability`: the packet types it takes and sends (announced in this device's identity),
@@ -76,5 +98,4 @@ The server copies System Bridge 5.31's API as Home Assistant's integration (conn
 
 ## Next
 
-- Keeping contacts and messages in the store, so they show while the phone is away.
 - A daemon on every computer reporting to a central one, so the page shows every machine.

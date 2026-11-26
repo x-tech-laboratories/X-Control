@@ -8,7 +8,7 @@ import { Badge, type Tone } from "@x-tech-laboratories/x-libs/web/react/badges";
 import { Card, Cards, Facts, PageHeading, Section } from "@x-tech-laboratories/x-libs/web/react/layout";
 import { Empty, Loaded } from "@x-tech-laboratories/x-libs/web/react/states";
 
-import type { DeviceView, PairState } from "../../shared/devices/model.ts";
+import type { DeviceView, PairState, ThisDevice } from "../../shared/devices/model.ts";
 import type { BatteryState } from "../../shared/plugins/states.ts";
 import { calls, succeeds, use_data } from "../api.ts";
 
@@ -69,6 +69,12 @@ function ConnectByAddress() {
   );
 }
 
+export function bluetooth_text(bluetooth: ThisDevice["bluetooth"]): string {
+  if (bluetooth.state === "on") return "On, for bonded devices";
+  if (bluetooth.state === "off") return "Off";
+  return `Waiting${bluetooth.error ? `: ${bluetooth.error}` : ""}`;
+}
+
 function ThisDeviceSection() {
   const resource = use_data((api) => api.get_this_device());
   return (
@@ -81,6 +87,7 @@ function ThisDeviceSection() {
               ["Type", type_labels[device.type]],
               ["Port", device.tcp_port ? String(device.tcp_port) : "Not listening"],
               ["Finding devices", device.discovery ? "On the local network" : "Only by address"],
+              ["Bluetooth", bluetooth_text(device.bluetooth)],
               ["Fingerprint", <code className="fingerprint">{device.fingerprint}</code>],
             ]}
           />

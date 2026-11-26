@@ -25,7 +25,10 @@ let
     database = "${state_directory}/control.db";
     backups_folder = "${state_directory}/backups";
     device_name = cfg.deviceName;
-    kdeconnect = { discovery = cfg.discovery; };
+    kdeconnect = {
+      discovery = cfg.discovery;
+      bluetooth = cfg.bluetooth;
+    };
     notify_channels = cfg.notifyChannels;
     home_assistant = {
       enabled = cfg.homeAssistant.enable;
@@ -80,6 +83,12 @@ in
       type = types.bool;
       default = true;
       description = "Find devices on the local network by broadcast; off, they are reached only by address.";
+    };
+
+    bluetooth = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Reach bonded phones over Bluetooth through BlueZ; the service user needs BlueZ's D-Bus policy to allow it.";
     };
 
     notifyChannels = mkOption {

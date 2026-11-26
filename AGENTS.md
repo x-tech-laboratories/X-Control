@@ -16,7 +16,8 @@ on Android in Capacitor. Read `README.md` first, then `docs/architecture.md`. It
 ## Rules
 
 - Never run X-Control on KDE Connect's usual ports (1716 to 1764) on the user's computer: their own KDE Connect or
-  Valent and their phone are there. Tests and the dev config use ports above 40000 and turn discovery off.
+  Valent and their phone are there. Tests and the dev config use ports above 40000 and turn discovery off, which
+  keeps Bluetooth off too: never register X-Control's Bluetooth profile with the user's BlueZ. Tests use a pretend BlueZ.
 - Each Valent or KDE Connect feature is a plugin in `src/server/plugins/` with its manifest in
   `src/shared/plugins/manifests.ts`, its state in `src/shared/plugins/states.ts` and its panel in `src/web/devices/panels.tsx`.
 - Each LNXlink feature is a plugin providing `entities`, readings and controls of this computer that show under This

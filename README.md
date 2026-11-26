@@ -35,7 +35,10 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Remote input | a device is its touchpad and keyboard | types text and presses keys on it |
 | Presenter | a phone moves the pointer as a slide remote | — |
 
-Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address. Not yet: Bluetooth.
+Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address, and bonded devices over
+Bluetooth: X-Control registers KDE Connect's Bluetooth profile with BlueZ and asks bonded devices that offer it to
+connect every half minute. Only one KDE Connect app on a computer can hold that profile, so Bluetooth waits while
+KDE Connect or Valent runs there, and This device on the Devices page says so.
 A phone's contacts and messages are kept in the store, so they show while it is away, and fetched again when it connects.
 This computer's notifications are read from the session bus with `busctl monitor`.
 
@@ -101,6 +104,7 @@ Sign in to a server with an account from `npm run hash-password -- <name>`, whic
 | `system` | `linux` drives the desktop, `sample` a pretend one | `linux` |
 | `kdeconnect.discovery` | find devices by broadcast | `true` |
 | `kdeconnect.mdns` | also find and advertise over mDNS, while discovery is on | `true` |
+| `kdeconnect.bluetooth` | reach bonded devices over Bluetooth through BlueZ | as `discovery` |
 | `kdeconnect.listen_port`, `announce_port` | the UDP ports | `1716` |
 | `kdeconnect.tcp_ports`, `payload_ports` | `[lowest, highest]` | `[1716, 1764]`, `[1739, 1764]` |
 | `notify_channels` | ntfy, webhook, mail or Apprise entries | none |
@@ -119,7 +123,8 @@ shows their notifications on the desktop. It drives the desktop through the prog
 `wl-clipboard` or `xclip`, `playerctl`, `pactl`, `loginctl`, `xdg-open`, `canberra-gtk-play`, `ydotool` (with its
 daemon) on Wayland or `xdotool` on X11 for remote input, and `sshfs` for a phone's files. This computer's readings
 come from `/proc` and `/sys`, with `nmcli`, `nvidia-smi`, `powerprofilesctl`, `brightnessctl`, `systemd-inhibit` and
-`systemctl` where present. A feature whose
+`systemctl` where present. Bluetooth takes BlueZ on the system bus and the native `usocket` module, which `npm install`
+builds with node-gyp and the desktop package builds for Electron; without it Bluetooth stays off and says why. A feature whose
 program is missing reports that in plain words and the rest keep working.
 
 ## Deviations from the standard
