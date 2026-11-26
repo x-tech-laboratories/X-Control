@@ -61,7 +61,7 @@ function ConnectByAddress() {
   };
   return (
     <form className="send-field" onSubmit={(event) => void submit(event)}>
-      <input aria-label="Address of a device" placeholder="Address of a device, such as 192.168.1.20" value={address} onChange={(event) => set_address(event.currentTarget.value)} />
+      <input aria-label="Address of a device" placeholder="Address of a device, such as 192.168.1.20 or 192.168.1.20:1716" value={address} onChange={(event) => set_address(event.currentTarget.value)} />
       <button type="submit" disabled={!address.trim()}>
         Connect
       </button>

@@ -13,7 +13,7 @@ import type { SqlDatabase } from "@x-tech-laboratories/x-libs/sql";
 import type { ComputerMethods } from "../shared/computer/api.ts";
 import type { DeviceMethods } from "../shared/devices/api.ts";
 import type { SystemBridgeMethods } from "../shared/system_bridge/api.ts";
-import { clean_device_name } from "../shared/kdeconnect/packet.ts";
+import { clean_device_name, lowest_tcp_port } from "../shared/kdeconnect/packet.ts";
 import { notice_setting, type Notice } from "../shared/notices.ts";
 import { app_info, plugins_setting } from "../shared/plugins/manifests.ts";
 import { commands_feature } from "../shared/commands/store.ts";
@@ -276,7 +276,16 @@ export async function start_control(options: ControlOptions): Promise<Control> {
       network.announce();
       await bluetooth?.connect_now();
     },
-    connect_address: async (address) => network.announce(address.trim()),
+    // Told over UDP, as KDE Connect does, and reached over TCP too, since Android ignores an announcement naming a
+    // port outside 1716 to 1764; the port given, or else the first of this device's own range.
+    connect_address: async (text) => {
+      const { host, port } = parse_address(text);
+      network.announce(host);
+      await network.connect(host, port ?? options.network?.tcp_ports?.lowest ?? lowest_tcp_port).catch((error: unknown) => {
+        if (port !== null) throw new Error(`Could not reach ${host} on port ${port}: ${error instanceof Error ? error.message : String(error)}`);
+        log(`could not connect to ${host}: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    },
     list_readings: () => readings.refresh(),
     set_control: (id, value) => readings.set(id, value),
     get_home_assistant_status: async () => home_assistant.status(),
@@ -317,6 +326,22 @@ export async function start_control(options: ControlOptions): Promise<Control> {
       await plugins.stop();
     },
   };
+}
+
+// An address as a person types it: a host name or IP address, with a port after a colon if wanted, such as
+// "192.168.1.20:1716" or "[fe80::1]:1716".
+export function parse_address(text: string): { host: string; port: number | null } {
+  const trimmed = text.trim();
+  const bracketed = /^\[([^\]]+)\](?::(\d+))?$/.exec(trimmed);
+  if (bracketed) return { host: bracketed[1]!, port: bracketed[2] ? Number(bracketed[2]) : null };
+  const with_port = /^([^:]+):(\d+)$/.exec(trimmed);
+  if (with_port) {
+    const port = Number(with_port[2]);
+    if (port < 1 || port > 65_535) throw new Error(`${with_port[2]} is not a port.`);
+    return { host: with_port[1]!, port };
+  }
+  if (!trimmed) throw new Error("An address is needed.");
+  return { host: trimmed, port: null };
 }
 
 // The folder files from devices land in: the user's downloads, or one beside the data on a server.

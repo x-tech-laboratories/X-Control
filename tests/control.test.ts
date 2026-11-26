@@ -284,3 +284,25 @@ describe("plugins between paired devices", () => {
     expect(laptop.computer.done).toContain(`unmount ${state}`);
   });
 });
+
+// ── Reaching by address ──────────────────────────────────────────────────────
+
+describe("reaching a device by address", () => {
+  test("reads a host with or without a port", async () => {
+    const { parse_address } = await import("../src/server/control.ts");
+    expect(parse_address(" 192.168.1.20 ")).toEqual({ host: "192.168.1.20", port: null });
+    expect(parse_address("phone.lan:1716")).toEqual({ host: "phone.lan", port: 1716 });
+    expect(parse_address("[fe80::1]:1717")).toEqual({ host: "fe80::1", port: 1717 });
+    expect(parse_address("fe80::1")).toEqual({ host: "fe80::1", port: null });
+    expect(() => parse_address("")).toThrow(/address is needed/);
+    expect(() => parse_address("host:70000")).toThrow(/not a port/);
+  });
+
+  test("connects over TCP to the port given, as Android needs, and says when nothing answers", async () => {
+    const laptop = await make_side("Laptop");
+    const phone = await make_side("Phone");
+    await laptop.control.methods.connect_address(`127.0.0.1:${phone.control.network.tcp_port()}`);
+    await until(() => laptop.control.devices.is_connected(phone.control.identity().device_id), "the connection");
+    await expect(laptop.control.methods.connect_address("127.0.0.1:9")).rejects.toThrow(/Could not reach 127.0.0.1 on port 9/);
+  });
+});

@@ -62,5 +62,8 @@ export const device_api: ApiSpec<DeviceMethods> = {
   reject_pairing: { description: "Turns down a device's request to pair, or takes back this one's.", params: [device_id] },
   unpair_device: { description: "Unpairs a device, on both sides when it is connected; it must be paired again to do anything.", params: [device_id], destructive: true },
   refresh_devices: { description: "Says who this device is to the network again, so devices nearby connect.", params: [] },
-  connect_address: { description: "Reaches a device at an address directly, for networks where devices cannot find each other, such as across a VPN.", params: [{ name: "address", schema: text("Its IP address or host name, such as 192.168.1.20.") }] },
+  connect_address: {
+    description: "Reaches a device at an address directly, for networks where devices cannot find each other, such as across a VPN: it is told over UDP and connected to over TCP, on the port given or else this device's first KDE Connect port.",
+    params: [{ name: "address", schema: text("Its IP address or host name, with :port if wanted, such as 192.168.1.20 or 192.168.1.20:1716.") }],
+  },
 };
