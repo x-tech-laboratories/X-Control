@@ -1,5 +1,6 @@
 // Notifications: a phone's notifications shown on this computer as well, kept in a list the page shows, and
-// dismissed, answered or acted on from there.
+// dismissed, answered or acted on from there; and this computer's own notifications sent to paired devices, as
+// Valent's fdo plugin does.
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
@@ -7,8 +8,9 @@ import { define_plugin } from "@x-tech-laboratories/x-libs/plugins";
 
 import { notification_manifest } from "../../shared/plugins/manifests.ts";
 import type { PhoneNotification, NotificationState } from "../../shared/plugins/states.ts";
+import type { DesktopNotice } from "../system/services.ts";
 import type { ControlPluginApi } from "./api.ts";
-import { number_field, text_arg, text_field } from "./helpers.ts";
+import { connected_devices, names_in, number_field, text_arg, text_field } from "./helpers.ts";
 
 // ── Packets ────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,20 @@ export function read_notification(body: Record<string, unknown>): PhoneNotificat
   };
 }
 
+// Whether a desktop notification goes to devices: never X-Control's own, which would echo a phone's back to it, nor
+// one from an app the user listed, nor one with nothing to say.
+export function should_forward(notice: DesktopNotice, skipped: string[]): boolean {
+  const app = notice.app.toLowerCase();
+  if (app === "x-control" || (!notice.title && !notice.body)) return false;
+  return !skipped.some((name) => name.toLowerCase() === app);
+}
+
+// The packet a desktop notification goes to a device as.
+export function desktop_notification_body(notice: DesktopNotice, id: string, now = Date.now()): Record<string, unknown> {
+  const title = notice.title || notice.app;
+  return { id, appName: notice.app || "X-Control", title, text: notice.body, ticker: notice.body ? `${title}: ${notice.body}` : title, isClearable: true, time: String(now), silent: notice.urgency === "low" };
+}
+
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
 export const notification_plugin = define_plugin<ControlPluginApi>({
@@ -38,12 +54,28 @@ export const notification_plugin = define_plugin<ControlPluginApi>({
   start(context) {
     const list_of = (state: NotificationState | undefined): PhoneNotification[] => state?.notifications ?? [];
     const key_of = (device_id: string, id: string): string => `notification:${device_id}:${id}`;
+    const devices = connected_devices();
+    let sent = 0;
+
+    // This computer's notifications go to every connected device that shows them.
+    const stop_watching = context.services.system.notices.watch((notice) => {
+      if (context.settings().forward_desktop === false || !should_forward(notice, names_in(context.settings().skip_apps))) return;
+      const body = desktop_notification_body(notice, `x-control-${Date.now()}-${++sent}`);
+      for (const device of devices.all()) if (device.takes(notification_type)) void device.send(notification_type, body).catch(() => undefined);
+    });
+    context.on_stop(stop_watching);
 
     context.provide("capability", "notification", {
-      incoming: [notification_type],
-      outgoing: [request_type, action_type, reply_type],
-      connected: (device) => (device.takes(request_type) ? device.send(request_type, { request: true }) : undefined),
+      incoming: [notification_type, request_type],
+      outgoing: [notification_type, request_type, action_type, reply_type],
+      connected: (device) => {
+        devices.add(device);
+        return device.takes(request_type) ? device.send(request_type, { request: true }) : undefined;
+      },
+      disconnected: (device) => devices.remove(device),
       packet(device, packet) {
+        // A device dismissing one of this computer's notifications, or asking for them; they were shown once and are not kept.
+        if (packet.type === request_type) return;
         const id = text_field(packet.body, "id");
         if (!id) return;
         const others = list_of(device.state<NotificationState>()).filter((notification) => notification.id !== id);

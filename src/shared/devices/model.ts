@@ -70,5 +70,9 @@ export interface PairedStore {
   list(): PairedDevice[];
   get(id: string): PairedDevice | null;
   save(device: PairedDevice): void;
+  // Removes the device and every state kept for it.
   remove(id: string): void;
+  // What plugins kept of a device while it is away, by plugin id.
+  states(id: string): Record<string, unknown>;
+  save_state(id: string, plugin_id: string, state: unknown): void;
 }

@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { not_installed_exit_code, run_program } from "@x-tech-laboratories/x-libs/agent/programs";
 
+import { linux_notices } from "./linux_notices.ts";
 import { linux_power, linux_readings, linux_units } from "./linux_readings.ts";
 import type { AudioSink, BatteryReading, InputServices, MediaPlayer, Modifier, MountServices, SystemServices } from "./services.ts";
 
@@ -224,6 +225,7 @@ export function linux_services(): SystemServices {
     readings: linux_readings(),
     power: linux_power(),
     units: linux_units(),
+    notices: linux_notices((message) => console.warn(message)),
     run_shell: async (command) => {
       const result = await run_program(["sh", "-c", command], { stdout: "keep", stderr: "keep" });
       return { exit_code: result.exit_code, output: (result.stdout + result.stderr).trim() };

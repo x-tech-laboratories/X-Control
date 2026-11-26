@@ -67,6 +67,7 @@ export const sms_plugin = define_plugin<ControlPluginApi>({
   ...sms_manifest,
   start(context) {
     context.provide("capability", "sms", {
+      keep_state: true,
       incoming: [messages_type],
       outgoing: [ask_conversations_type, ask_conversation_type, send_type],
       connected: (device) => (device.takes(ask_conversations_type) ? device.send(ask_conversations_type, {}) : undefined),

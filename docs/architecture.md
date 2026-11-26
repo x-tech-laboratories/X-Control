@@ -40,6 +40,10 @@ what to do when a paired device connects or sends one, and named actions the pag
 `plugins.<id>`. A page plugin with the same manifest fills the device page's `device_panel` slot. On or off and each
 plugin's settings are kept in the `plugins` setting, which both sides read.
 
+A capability marked `keep_state` has what it knows of a paired device kept in the `device_states` table, such as a
+phone's contacts and messages. The table never syncs. Its rows load back when the device is next asked for, and go
+when it is unpaired.
+
 A plugin can also provide `entities`: readings and controls of this computer, each with a kind Home Assistant knows
 (sensor, binary_sensor, switch, button, number, select or text), listed again every minute and whenever plugins or
 run commands change, since disks and network cards come and go. The readings registry reads each when it falls due,

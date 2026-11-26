@@ -20,12 +20,12 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Ping | shows a device's ping | pings it |
 | Battery | sends its charge as it changes | shows the charge, warns when low |
 | Clipboard | takes what a device copies | sends what you copy here |
-| Notifications | — | lists its notifications, dismisses them, replies, presses their buttons |
+| Notifications | sends this computer's notifications to devices that show them | lists its notifications, dismisses them, replies, presses their buttons |
 | Find my device | rings when a device asks | rings it |
 | Share | saves files to Downloads, opens links, copies text | sends links, text and files |
 | Run commands | runs the commands listed under Commands | runs the device's own commands |
 | Mobile network | — | shows its network and signal |
-| Calls | — | tells you of incoming and missed calls, mutes the ringing |
+| Calls | turns the speakers down or mutes them and pauses media while a phone rings or a call is under way, then puts them back | tells you of incoming and missed calls, mutes the ringing |
 | Lock | locks and unlocks the session | locks it |
 | Media players | lets a device control the players here | controls its players |
 | System volume | lets a device control the speakers here | controls its speakers |
@@ -36,7 +36,8 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Presenter | a phone moves the pointer as a slide remote | — |
 
 Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address. Not yet: Bluetooth.
-Contacts and messages are kept while the daemon runs and fetched again when the phone connects.
+A phone's contacts and messages are kept in the store, so they show while it is away, and fetched again when it connects.
+This computer's notifications are read from the session bus with `busctl monitor`.
 
 ### This computer and Home Assistant
 
