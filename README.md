@@ -35,7 +35,8 @@ Every feature is a bundled plugin on the X-Libs plugin host, and each can be tur
 | Remote input | a device is its touchpad and keyboard | types text and presses keys on it |
 | Presenter | a phone moves the pointer as a slide remote | — |
 
-Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address, and bonded devices over
+Devices are found by UDP broadcast and over mDNS (`_kdeconnect._udp`), or reached by address (over UDP and TCP, with
+`:port` to name the port), and bonded devices over
 Bluetooth: X-Control registers KDE Connect's Bluetooth profile with BlueZ and asks bonded devices that offer it to
 connect every half minute. Only one KDE Connect app on a computer can hold that profile, so Bluetooth waits while
 KDE Connect or Valent runs there, and This device on the Devices page says so.
