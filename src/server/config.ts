@@ -40,7 +40,7 @@ interface RawConfig {
   device_name?: unknown;
   device_type?: unknown;
   system?: unknown;
-  kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown; mdns?: unknown };
+  kdeconnect?: { discovery?: unknown; listen_port?: unknown; announce_port?: unknown; tcp_ports?: unknown; payload_ports?: unknown; allow_loopback?: unknown; mdns?: unknown; bluetooth?: unknown };
   notify_channels?: unknown;
   system_bridge?: { enabled?: unknown; port?: unknown };
   home_assistant?: { enabled?: unknown; broker?: unknown; username?: unknown; password_file?: unknown; password_credential?: unknown; discovery_prefix?: unknown; base_topic?: unknown; interval?: unknown };
@@ -90,6 +90,7 @@ export function read_config(raw: RawConfig): ServerConfig {
     network: {
       discovery: network.discovery !== false,
       mdns: network.mdns !== false,
+      bluetooth: typeof network.bluetooth === "boolean" ? network.bluetooth : undefined,
       listen_port: optional_port(network.listen_port),
       announce_port: optional_port(network.announce_port),
       tcp_ports: port_range(network.tcp_ports),

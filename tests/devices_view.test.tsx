@@ -43,7 +43,7 @@ function use_devices(devices: DeviceView[]): void {
       { id: "ping.send", plugin_id: "ping", label: "Ping", description: "Pings it." },
       { id: "findmyphone.ring", plugin_id: "findmyphone", label: "Ring", description: "Rings it." },
     ]),
-    get_this_device: vi.fn(async () => ({ id: "b".repeat(32), name: "Laptop", type: "laptop", tcp_port: 1716, fingerprint: "CC:DD", discovery: true })),
+    get_this_device: vi.fn(async () => ({ id: "b".repeat(32), name: "Laptop", type: "laptop", tcp_port: 1716, fingerprint: "CC:DD", discovery: true, bluetooth: { state: "waiting", error: "another app holds it" } })),
     accept_pairing: vi.fn(async () => undefined),
     run_device_action: vi.fn(async () => undefined),
     get_settings: vi.fn(async () => ({ plugins: {} })),

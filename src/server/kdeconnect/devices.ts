@@ -204,6 +204,11 @@ export function create_device_manager(options: DeviceManagerOptions) {
 
   function attach(link: DeviceLink): void {
     const entry = entry_of(link.identity.deviceId);
+    // A device already reached on a better link, such as LAN over Bluetooth, keeps it; the newer link is dropped.
+    if (entry.link && entry.link !== link && entry.link.is_open() && entry.link.priority > link.priority) {
+      log(`${link.identity.deviceName} is already connected over a better link; dropping the one from ${link.address}`);
+      return link.close();
+    }
     if (entry.link && entry.link !== link) entry.link.close();
     entry.link = link;
     entry.identity = link.identity;
@@ -279,9 +284,16 @@ export function create_device_manager(options: DeviceManagerOptions) {
       const entry = require_entry(id);
       if (entry.pair_state === "paired") return;
       if (entry.pair_state === "incoming") return become_paired((await send(entry, pair_type, { pair: true }), entry));
-      entry.pair_timestamp = Math.floor(now() / 1000);
-      await send(entry, pair_type, { pair: true, timestamp: entry.pair_timestamp });
+      const timestamp = Math.floor(now() / 1000);
+      // Marked before sending, since a quick device can answer before the send is done.
       set_pair_state(entry, "requested");
+      entry.pair_timestamp = timestamp;
+      try {
+        await send(entry, pair_type, { pair: true, timestamp });
+      } catch (error) {
+        if (entry.pair_state === "requested") set_pair_state(entry, "unpaired");
+        throw error;
+      }
     },
     async accept_pair(id: string): Promise<void> {
       const entry = require_entry(id);

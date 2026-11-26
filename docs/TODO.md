@@ -17,7 +17,8 @@
 
 Left before X-Control can replace Valent on a desktop:
 
-- Bluetooth as a second way to reach devices (Valent's `bluez` plugin): BlueZ's `Profile1` over D-Bus with the socket handed over as a file descriptor, and KDE Connect's multiplexed channels over RFCOMM.
+- Try Bluetooth with a real phone, KDE Connect and Valent; everything so far ran against a pretend BlueZ and descriptors passed on a private bus.
+- Move off `process.binding("pipe_wrap")`, which Node may drop, if it does: the descriptor would then go through a file stream, whose pending read keeps the daemon from exiting.
 - Keep a phone's contacts where the desktop's apps see them, in Evolution Data Server (Valent's `eds` plugin). Valent on Odin keeps no address book there, so nothing uses it yet.
 - Mute the microphone during a call, once `SystemServices` reaches sound inputs.
 - Check mDNS discovery against Valent and the KDE Connect app on a network that answers mDNS.

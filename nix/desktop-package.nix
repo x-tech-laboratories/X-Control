@@ -7,6 +7,8 @@
   makeWrapper,
   copyDesktopItems,
   makeDesktopItem,
+  python3,
+  node-gyp,
 }:
 
 buildNpmPackage {
@@ -23,7 +25,14 @@ buildNpmPackage {
   nativeBuildInputs = [
     makeWrapper
     copyDesktopItems
+    python3
+    node-gyp
   ];
+
+  # The daemon runs on Electron's own Node, so usocket, which passes Bluetooth sockets over D-Bus, is built for it.
+  preBuild = ''
+    npm_config_nodedir=${electron_45.headers} node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js rebuild --directory=node_modules/usocket --nodedir=${electron_45.headers}
+  '';
 
   npmBuildScript = "build:desktop";
 

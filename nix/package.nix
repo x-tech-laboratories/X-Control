@@ -4,6 +4,7 @@
   importNpmLock,
   nodejs_24,
   makeWrapper,
+  python3,
 }:
 
 buildNpmPackage {
@@ -17,7 +18,11 @@ buildNpmPackage {
   npmConfigHook = importNpmLock.npmConfigHook;
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 
-  nativeBuildInputs = [ makeWrapper ];
+  # node-gyp builds usocket, which passes Bluetooth sockets over D-Bus.
+  nativeBuildInputs = [
+    makeWrapper
+    python3
+  ];
 
   # Node will not run .ts files from under a node_modules folder, so the app lives in lib/x-control.
   installPhase = ''

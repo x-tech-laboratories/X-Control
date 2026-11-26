@@ -24,7 +24,7 @@ function use_readings(readings: EntityView[], status: HomeAssistantStatus = off)
     list_readings: vi.fn(async () => readings),
     set_control: vi.fn(async (id: string) => readings.find((found) => found.id === id)),
     get_home_assistant_status: vi.fn(async () => status),
-    get_this_device: vi.fn(async () => ({ id: "b".repeat(32), name: "Desk", type: "desktop", tcp_port: 1716, fingerprint: "CC:DD", discovery: true })),
+    get_this_device: vi.fn(async () => ({ id: "b".repeat(32), name: "Desk", type: "desktop", tcp_port: 1716, fingerprint: "CC:DD", discovery: true, bluetooth: { state: "waiting", error: "another app holds it" } })),
   };
   set_page_api({ host: "web", calls: calls as unknown as PageApi["calls"], device: null, on_change: () => () => {} });
 }

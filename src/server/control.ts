@@ -25,6 +25,8 @@ import { create_device_manager, type DeviceManager } from "./kdeconnect/devices.
 import { fingerprint_of, load_identity, save_identity, type DeviceIdentity } from "./kdeconnect/identity.ts";
 import { create_lan_backend, type LanBackend, type LanOptions } from "./kdeconnect/lan.ts";
 import { start_mdns, type MdnsDiscovery } from "./kdeconnect/mdns.ts";
+import { create_bluetooth_backend, type BluetoothBackend } from "./kdeconnect/bluetooth/backend.ts";
+import { system_bluez, unix_fd_support, type BluezBus } from "./kdeconnect/bluetooth/bluez.ts";
 import type { ControlPlugin, ControlPluginApi } from "./plugins/api.ts";
 import { bundled_plugins } from "./plugins/bundled.ts";
 import type { SystemServices } from "./system/services.ts";
@@ -36,6 +38,8 @@ import { create_system_bridge_link, system_bridge_settings, type SystemBridgeLin
 export type NetworkOptions = Pick<LanOptions, "discovery" | "listen_port" | "announce_port" | "tcp_ports" | "payload_ports" | "allow_loopback" | "broadcast_addresses"> & {
   // Advertise and find devices over mDNS as well as by broadcast; on wherever discovery is.
   mdns?: boolean;
+  // Reach bonded devices over Bluetooth through BlueZ; when left out, on wherever discovery is.
+  bluetooth?: boolean;
 };
 
 export interface ControlOptions {
@@ -60,6 +64,8 @@ export interface ControlOptions {
   home_assistant?: Partial<Omit<HomeAssistantSettings, "password">> & { password_file?: string };
   // The System Bridge server from the config file, used where Settings leaves it unset.
   system_bridge?: Partial<SystemBridgeSettings>;
+  // How Bluetooth reaches BlueZ; tests hand in a BlueZ of their own.
+  bluez?: () => Promise<BluezBus>;
   // How the bridge reaches the broker; tests hand in their own.
   mqtt_session?: SessionFactory;
   log?: (message: string) => void;
@@ -211,6 +217,26 @@ export async function start_control(options: ControlOptions): Promise<Control> {
   const mdns: MdnsDiscovery | null = options.network?.discovery !== false && options.network?.mdns !== false ? start_mdns({ identity: () => identity, announce: (address) => network.announce(address), on_warning: log }) : null;
   home_assistant.start();
   await system_bridge.follow_settings();
+  // Bluetooth needs descriptors passed over D-Bus, which takes the native usocket module.
+  const bluetooth: BluetoothBackend | null =
+    (options.network?.bluetooth ?? options.network?.discovery !== false)
+      ? create_bluetooth_backend({
+          bus:
+            options.bluez ??
+            (async () => {
+              const support = unix_fd_support();
+              if (!support.ok) throw new Error(support.reason);
+              return system_bluez();
+            }),
+          identity: () => identity,
+          capabilities: () => devices.capabilities(),
+          trusted_certificate: (id) => devices.trusted_certificate(id),
+          is_connected: (id) => devices.is_connected(id),
+          on_link: (link) => devices.attach(link),
+          log,
+        })
+      : null;
+  await bluetooth?.start();
   log(`X-Control is ${identity.name} (${identity.device_id}) on TCP port ${network.tcp_port()}`);
 
   // Records changed on another page or device: each plugin is turned on or off and given its settings to match.
@@ -226,7 +252,10 @@ export async function start_control(options: ControlOptions): Promise<Control> {
   }
 
   const methods: DeviceMethods & ComputerMethods & SystemBridgeMethods = {
-    get_this_device: async () => ({ id: identity.device_id, name: identity.name, type: identity.type, tcp_port: network.tcp_port(), fingerprint: fingerprint_of(identity.certificate), discovery: options.network?.discovery !== false }),
+    get_this_device: async () => {
+      const status = bluetooth?.status();
+      return { id: identity.device_id, name: identity.name, type: identity.type, tcp_port: network.tcp_port(), fingerprint: fingerprint_of(identity.certificate), discovery: options.network?.discovery !== false, bluetooth: { state: status?.state ?? "off", error: status?.error ?? null } };
+    },
     rename_this_device: async (name) => {
       identity = { ...identity, name: clean_device_name(name) };
       save_identity(options.identity_file, identity);
@@ -243,7 +272,10 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     accept_pairing: (id) => devices.accept_pair(id),
     reject_pairing: (id) => devices.reject_pair(id),
     unpair_device: (id) => devices.unpair(id),
-    refresh_devices: async () => network.announce(),
+    refresh_devices: async () => {
+      network.announce();
+      await bluetooth?.connect_now();
+    },
     connect_address: async (address) => network.announce(address.trim()),
     list_readings: () => readings.refresh(),
     set_control: (id, value) => readings.set(id, value),
@@ -278,6 +310,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     async stop() {
       await home_assistant.stop();
       await system_bridge.stop();
+      await bluetooth?.stop();
       devices.stop();
       await mdns?.stop();
       await network.stop();
