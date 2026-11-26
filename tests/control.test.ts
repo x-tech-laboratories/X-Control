@@ -19,6 +19,8 @@ interface Side {
   notices: Notice[];
   database: DatabaseSync;
   folder: string;
+  // Sets the plugins setting straight in the database, as Settings would.
+  store_set_plugins(records: Record<string, unknown>): void;
 }
 
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -52,7 +54,8 @@ async function make_side(name: string): Promise<Side> {
   });
   cleanups.push(() => rmSync(folder, { recursive: true, force: true }));
   cleanups.push(() => control.stop());
-  return { control, computer, notices, database, folder };
+  const store_set_plugins = (records: Record<string, unknown>): void => void database.prepare("INSERT INTO settings (key, value) VALUES ('plugins', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(JSON.stringify(records));
+  return { control, computer, notices, database, folder, store_set_plugins };
 }
 
 async function until<Value>(read: () => Value | undefined | null | false | Promise<Value | undefined | null | false>, what: string): Promise<Value> {
@@ -220,6 +223,43 @@ describe("plugins between paired devices", () => {
     const conversation = await until(async () => ((await laptop.control.methods.get_device(phone_id)).plugins.sms as SmsState | undefined)?.conversations[0], "the messages");
     expect(conversation.messages[0]?.body).toBe("Hi");
     await expect(laptop.control.methods.run_device_action(phone_id, "sms.send", { addresses: ["123"], message: "Hello back" })).resolves.toBeUndefined();
+    // Kept in the store, so they show while the phone is away and after the daemon starts again.
+    const kept = laptop.database.prepare("SELECT plugin_id FROM device_states ORDER BY plugin_id").all() as { plugin_id: string }[];
+    expect(kept.map((row) => row.plugin_id)).toEqual(["contacts", "sms"]);
+    const { paired_store } = await import("../src/shared/devices/store.ts");
+    expect((paired_store(() => laptop.database).states(phone_id).contacts as ContactsState).contacts[0]?.name).toBe("Alex");
+    await laptop.control.methods.unpair_device(phone_id);
+    expect(laptop.database.prepare("SELECT COUNT(*) AS count FROM device_states").get()).toEqual({ count: 0 });
+  });
+
+  test("this computer's notifications go to the phone, but not X-Control's own nor skipped apps'", async () => {
+    const { laptop, phone, laptop_id } = await paired_pair();
+    laptop.computer.show_desktop_notice({ app: "X-Control", title: "Echo", body: "from the phone", urgency: "normal" });
+    laptop.computer.show_desktop_notice({ app: "Thunderbird", title: "New mail", body: "Hello", urgency: "normal" });
+    const shown = await until(async () => ((await phone.control.methods.get_device(laptop_id)).plugins.notification as { notifications: { app: string; title: string; text: string }[] } | undefined)?.notifications, "the notification");
+    expect(shown).toEqual([expect.objectContaining({ app: "Thunderbird", title: "New mail", text: "Hello" })]);
+    laptop.store_set_plugins({ notification: { enabled: true, settings: { forward_desktop: true, skip_apps: "thunderbird" } } });
+    await laptop.control.after_store_change("set_setting");
+    laptop.computer.show_desktop_notice({ app: "Thunderbird", title: "Second", body: "skipped", urgency: "normal" });
+    laptop.computer.show_desktop_notice({ app: "Calendar", title: "Meeting", body: "at ten", urgency: "normal" });
+    await until(async () => ((await phone.control.methods.get_device(laptop_id)).plugins.notification as { notifications: { title: string }[] }).notifications.length === 2, "the second notification");
+    const titles = ((await phone.control.methods.get_device(laptop_id)).plugins.notification as { notifications: { title: string }[] }).notifications.map((entry) => entry.title);
+    expect(titles).toEqual(["Meeting", "New mail"]);
+  });
+
+  test("this computer goes quiet while the phone rings and during the call, and comes back after", async () => {
+    const { laptop, phone, laptop_id } = await paired_pair();
+    const speakers = () => laptop.computer.state.sinks.find((sink) => sink.is_default)!;
+    const from_phone = phone.control.devices.handle(laptop_id, "test");
+    await from_phone.send("kdeconnect.telephony", { event: "ringing", contactName: "Alex" });
+    await until(() => speakers().volume < 40_000, "the speakers turned down");
+    expect(laptop.computer.state.players.find((player) => player.name === "music")?.is_playing).toBe(true);
+    await from_phone.send("kdeconnect.telephony", { event: "talking", contactName: "Alex" });
+    await until(() => speakers().muted, "the speakers muted");
+    expect(laptop.computer.state.players.find((player) => player.name === "music")?.is_playing).toBe(false);
+    await from_phone.send("kdeconnect.telephony", { event: "talking", contactName: "Alex", isCancel: true });
+    await until(() => !speakers().muted && speakers().volume === 40_000, "the speakers put back");
+    await until(() => laptop.computer.state.players.find((player) => player.name === "music")?.is_playing, "the music playing again");
   });
 
   test("a device moves, clicks and types on this computer", async () => {

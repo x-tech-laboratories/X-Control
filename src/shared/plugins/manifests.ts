@@ -31,7 +31,10 @@ export const clipboard_manifest = bundled("clipboard", "Clipboard", "Keep the cl
   { key: "receive_automatically", label: "Take copied text", hint: "Put what a paired device copies on this computer's clipboard.", type: "switch", default: true },
 ]);
 
-export const notification_manifest = bundled("notification", "Notifications", "See a phone's notifications here, dismiss them and reply to messages.");
+export const notification_manifest = bundled("notification", "Notifications", "See a phone's notifications here, dismiss them and reply to messages, and send this computer's to paired devices.", [
+  { key: "forward_desktop", label: "Send this computer's notifications", hint: "Show the notifications of this computer's programs on paired devices that take them.", type: "switch", default: true },
+  { key: "skip_apps", label: "Apps not to send", hint: "Program names separated by commas, as their notifications give them, such as Thunderbird.", type: "text", default: "" },
+]);
 
 export const findmyphone_manifest = bundled("findmyphone", "Find my device", "Ring a device to find it, and let devices ring this one.");
 
@@ -44,7 +47,18 @@ export const runcommand_manifest = bundled("runcommand", "Run commands", "Let pa
 
 export const connectivity_manifest = bundled("connectivity_report", "Mobile network", "See a phone's mobile network and signal strength.");
 
-export const telephony_manifest = bundled("telephony", "Calls", "Hear about a phone's calls here, and mute its ringing.");
+const speaker_choices = [
+  { value: "nothing", label: "Leave them" },
+  { value: "lower", label: "Turn them down" },
+  { value: "mute", label: "Mute them" },
+];
+
+export const telephony_manifest = bundled("telephony", "Calls", "Hear about a phone's calls here, mute its ringing, and quiet this computer while a call rings or is under way.", [
+  { key: "ringing_speakers", label: "Speakers while it rings", hint: "What this computer's speakers do while a phone rings; they are put back after.", type: "choice", default: "lower", choices: speaker_choices },
+  { key: "ringing_pause", label: "Pause media while it rings", hint: "Pause what plays here while a phone rings, and play it again after.", type: "switch", default: false },
+  { key: "talking_speakers", label: "Speakers during a call", hint: "What this computer's speakers do during a call; they are put back after.", type: "choice", default: "mute", choices: speaker_choices },
+  { key: "talking_pause", label: "Pause media during a call", hint: "Pause what plays here during a call, and play it again after.", type: "switch", default: true },
+]);
 
 export const lock_manifest = bundled("lock", "Lock", "Lock and unlock this computer from a device, and lock a device from here.");
 

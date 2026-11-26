@@ -59,7 +59,9 @@ export function create_device_manager(options: DeviceManagerOptions) {
   function entry_of(id: string): Entry {
     let entry = entries.get(id);
     if (!entry) {
-      entry = { id, identity: null, link: null, pair_state: options.paired.get(id) ? "paired" : "unpaired", pair_timestamp: null, pair_timer: undefined, states: new Map() };
+      const paired = options.paired.get(id) !== null;
+      // A paired device starts with what plugins kept of it.
+      entry = { id, identity: null, link: null, pair_state: paired ? "paired" : "unpaired", pair_timestamp: null, pair_timer: undefined, states: new Map(paired ? Object.entries(options.paired.states(id)) : []) };
       entries.set(id, entry);
     }
     return entry;
@@ -118,6 +120,7 @@ export function create_device_manager(options: DeviceManagerOptions) {
       state: <State>() => entry.states.get(plugin_id) as State | undefined,
       set_state: (state) => {
         entry.states.set(plugin_id, state);
+        if (entry.pair_state === "paired" && options.capabilities().some((provided) => provided.plugin_id === plugin_id && provided.capability.keep_state)) options.paired.save_state(entry.id, plugin_id, state);
         changed();
       },
     };

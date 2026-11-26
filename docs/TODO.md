@@ -17,11 +17,9 @@
 
 Left before X-Control can replace Valent on a desktop:
 
-- Bluetooth as a second way to reach devices (Valent's `bluez` plugin).
-- Send this computer's own desktop notifications to paired phones, by listening on `org.freedesktop.Notifications` (Valent's `fdo` plugin).
-- Lower or mute the speakers and pause media players while the phone rings or a call is under way, and put them back after (Valent's `telephony` plugin).
-- Keep a phone's contacts where the desktop's apps see them, in Evolution Data Server (Valent's `eds` plugin).
-- Keep contacts and messages in the store, so they show while the phone is away.
+- Bluetooth as a second way to reach devices (Valent's `bluez` plugin): BlueZ's `Profile1` over D-Bus with the socket handed over as a file descriptor, and KDE Connect's multiplexed channels over RFCOMM.
+- Keep a phone's contacts where the desktop's apps see them, in Evolution Data Server (Valent's `eds` plugin). Valent on Odin keeps no address book there, so nothing uses it yet.
+- Mute the microphone during a call, once `SystemServices` reaches sound inputs.
 - Check mDNS discovery against Valent and the KDE Connect app on a network that answers mDNS.
 - Try SFTP, remote input and messages with a real phone.
 

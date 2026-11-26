@@ -4,13 +4,15 @@
 
 // ── Imports ──────────────────────────────────────────────────────────────────
 
-import type { AudioSink, MediaPlayer, SystemServices } from "./services.ts";
+import type { AudioSink, DesktopNotice, MediaPlayer, SystemServices } from "./services.ts";
 
 // ── Sample computer ──────────────────────────────────────────────────────────
 
 export interface SampleComputer extends SystemServices {
   // Everything asked of it, such as "lock" or "run echo hi", in order.
   done: string[];
+  // Shows a notification as a program on the desktop would.
+  show_desktop_notice(notice: DesktopNotice): void;
   state: { clipboard: string; locked: boolean; players: MediaPlayer[]; sinks: AudioSink[]; profile: string; brightness: number; kept_awake: boolean; units: Record<string, boolean> };
 }
 
@@ -50,6 +52,7 @@ export function sample_computer(): SampleComputer {
   const received = counter(800_000);
   const sent = counter(120_000);
   const done: string[] = [];
+  const notice_listeners = new Set<(notice: DesktopNotice) => void>();
   const find_player = (name: string): MediaPlayer => {
     const found = state.players.find((candidate) => candidate.name === name);
     if (!found) throw new Error(`no player called ${name}`);
@@ -63,6 +66,13 @@ export function sample_computer(): SampleComputer {
   return {
     done,
     state,
+    show_desktop_notice: (notice) => notice_listeners.forEach((listener) => listener(notice)),
+    notices: {
+      watch(listener) {
+        notice_listeners.add(listener);
+        return () => void notice_listeners.delete(listener);
+      },
+    },
     clipboard: {
       read: async () => state.clipboard,
       write: async (text) => {

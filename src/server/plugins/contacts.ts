@@ -37,6 +37,7 @@ export const contacts_plugin = define_plugin<ControlPluginApi>({
   ...contacts_manifest,
   start(context) {
     context.provide("capability", "contacts", {
+      keep_state: true,
       incoming: [uids_type, cards_type],
       outgoing: [ask_uids_type, ask_cards_type],
       connected: (device) => (device.takes(ask_uids_type) ? device.send(ask_uids_type, {}) : undefined),

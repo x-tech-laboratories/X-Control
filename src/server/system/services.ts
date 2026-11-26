@@ -229,6 +229,21 @@ export interface UnitServices {
   set_running(unit: string, user: boolean, running: boolean): Promise<void>;
 }
 
+// ── Desktop notifications ────────────────────────────────────────────────────
+
+// A notification a program on this computer showed, as the desktop's notification server was asked to.
+export interface DesktopNotice {
+  app: string;
+  title: string;
+  body: string;
+  urgency: "low" | "normal" | "critical";
+}
+
+export interface DesktopNotices {
+  // Runs for every notification shown from now on; returns the function that stops watching.
+  watch(listener: (notice: DesktopNotice) => void): () => void;
+}
+
 // ── Computer ─────────────────────────────────────────────────────────────────
 
 export interface BatteryReading {
@@ -256,6 +271,7 @@ export interface SystemServices {
   readings: ComputerReadings;
   power: PowerServices;
   units: UnitServices;
+  notices: DesktopNotices;
   // Runs a command line the user wrote, as their own shell would.
   run_shell(command: string): Promise<{ exit_code: number; output: string }>;
   // Opens a link or a file in the program the desktop picks.

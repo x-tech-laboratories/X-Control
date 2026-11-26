@@ -50,6 +50,8 @@ export interface Capability {
   disconnected?(device: DeviceHandle): void;
   packet?(device: DeviceHandle, packet: Packet, payload: IncomingPayload | null): void | Promise<void>;
   actions?: Record<string, DeviceAction>;
+  // Keep what the plugin knows of a paired device in the store, so it shows while the device is away.
+  keep_state?: boolean;
 }
 
 // ── Entities ─────────────────────────────────────────────────────────────────
