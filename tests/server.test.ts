@@ -52,6 +52,11 @@ describe("the server", () => {
     expect(response.statusCode).toBe(401);
   });
 
+  test("asks for a sign-in on an encoded path to a call too", async () => {
+    const response = await app.inject({ method: "POST", url: "/%61pi/call/list_devices", payload: [] });
+    expect([400, 401]).toContain(response.statusCode);
+  });
+
   test("answers calls in order or by name", async () => {
     const by_list = await app.inject({ method: "POST", url: "/api/call/save_command", headers: { cookie }, payload: [{ name: "Lock", command: "loginctl lock-session" }] });
     expect(by_list.statusCode).toBe(200);
