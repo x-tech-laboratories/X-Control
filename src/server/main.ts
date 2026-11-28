@@ -9,6 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import { keep_backing_up } from "@x-tech-laboratories/x-libs/backups";
 import { load_plugin_folder } from "@x-tech-laboratories/x-libs/plugin_folder";
 import { read_server_config } from "@x-tech-laboratories/x-libs/server/config";
+import { file_sync_storage } from "@x-tech-laboratories/x-libs/sync_file_storage";
 import { EventStream } from "@x-tech-laboratories/x-libs/server/events";
 import { read_channels } from "@x-tech-laboratories/x-libs/server/notify/channels";
 import { load_accounts } from "@x-tech-laboratories/x-libs/server/passwords";
@@ -107,6 +108,10 @@ const app = await build_app({
   declared: load_accounts("X_CONTROL_PASSWORD_HASH_FILE"),
   web_folder: server_config.web_folder,
   plugins_folder: config.plugins_folder,
+  sync: {
+    storage: file_sync_storage({ file: join(dirname(config.database), "sync-peers.json"), back_up_before_replace: async () => void (await kept.create()) }),
+    address: config.sync_address,
+  },
   backups: {
     list_backups: kept.list,
     create_backup: () => kept.create(),

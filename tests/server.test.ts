@@ -5,6 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import type { FastifyInstance } from "fastify";
 import { hash_password } from "@x-tech-laboratories/x-libs/server/passwords";
+import { file_sync_storage } from "@x-tech-laboratories/x-libs/sync_file_storage";
+import { decode_pairing_offer } from "@x-tech-laboratories/x-libs/sync_seal";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { open_store } from "../src/shared/store.ts";
@@ -35,7 +37,8 @@ beforeAll(async () => {
     log: () => {},
   });
   const backups = { list_backups: async () => [], create_backup: async () => "", restore_backup: async () => {}, remove_backup: async () => {}, get_backup_schedule: () => ({ automatic: true, to_keep: 14 }), set_backup_schedule: () => {} };
-  app = await build_app({ database, control, declared: new Map([["admin", await hash_password("secret words")]]), web_folder: join(folder, "web"), backups: backups as never });
+  const sync = { storage: file_sync_storage({ file: join(folder, "sync-peers.json"), back_up_before_replace: () => {} }), address: "https://control.example.org/api/" };
+  app = await build_app({ database, control, declared: new Map([["admin", await hash_password("secret words")]]), web_folder: join(folder, "web"), backups: backups as never, sync });
   const login = await app.inject({ method: "POST", url: "/api/login", payload: { name: "admin", password: "secret words" } });
   cookie = String(login.headers["set-cookie"]).split(";")[0]!;
 });
@@ -55,6 +58,16 @@ describe("the server", () => {
   test("asks for a sign-in on an encoded path to a call too", async () => {
     const response = await app.inject({ method: "POST", url: "/%61pi/call/list_devices", payload: [] });
     expect([400, 401]).toContain(response.statusCode);
+  });
+
+  test("lets paired devices reach its sync without signing in, and gives only an admin a pairing code", async () => {
+    const stranger = await app.inject({ method: "POST", url: "/api/sync/peer", headers: { "content-type": "application/octet-stream", "x-sync-device": "NOBODY" }, payload: Buffer.alloc(64) });
+    expect(stranger.statusCode).toBe(403);
+    expect((await app.inject({ method: "POST", url: "/api/sync/create_pairing_code", payload: [] })).statusCode).toBe(401);
+
+    const made = await app.inject({ method: "POST", url: "/api/sync/create_pairing_code", headers: { cookie }, payload: [] });
+    const offer = decode_pairing_offer((JSON.parse(made.body) as { code: string }).code);
+    expect(offer).toMatchObject({ app: "x-control", name: "X-Control server", addresses: ["https://control.example.org/api/"] });
   });
 
   test("answers calls in order or by name", async () => {

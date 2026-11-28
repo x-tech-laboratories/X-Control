@@ -13,6 +13,8 @@ import type { ControlOptions, NetworkOptions } from "./control.ts";
 export interface ServerConfig {
   database: string;
   backups_folder: string;
+  // Where paired devices reach this server's sync, such as "https://control.example.org/api/"; null when they cannot.
+  sync_address: string | null;
   identity_file: string;
   downloads_folder: string;
   mounts_folder: string;
@@ -33,6 +35,7 @@ export interface ServerConfig {
 interface RawConfig {
   database?: unknown;
   backups_folder?: unknown;
+  sync_address?: unknown;
   identity_file?: unknown;
   downloads_folder?: unknown;
   mounts_folder?: unknown;
@@ -80,6 +83,7 @@ export function read_config(raw: RawConfig): ServerConfig {
   return {
     database,
     backups_folder: path_or(raw.backups_folder, join(data_folder, "backups")),
+    sync_address: typeof raw.sync_address === "string" && raw.sync_address ? raw.sync_address : null,
     identity_file: path_or(raw.identity_file, join(data_folder, "identity.json")),
     downloads_folder: path_or(raw.downloads_folder, join(data_folder, "received")),
     mounts_folder: path_or(raw.mounts_folder, join(data_folder, "mounts")),
