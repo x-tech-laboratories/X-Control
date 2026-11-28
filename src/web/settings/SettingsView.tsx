@@ -157,10 +157,10 @@ function import_export_section(): SettingsSection {
         </SettingRow>
         <SettingRow label="Settings" hint="Every setting but those of this device alone, such as its notifications.">
           <div className="button-list">
-            <button type="button" onClick={() => void attempt(() => calls().export_settings()).then((text) => text && save_file(`x-control-settings-${today()}.json`, text, "application/json"))}>
+            <button type="button" onClick={() => void attempt(() => calls().export_settings()).then((file) => file && save_file(`x-control-settings-${today()}.json`, JSON.stringify(file, null, 2), "application/json"))}>
               Export
             </button>
-            <FileButton label="Import" accept=".json,application/json" on_text={(text) => void attempt(() => calls().import_settings(text)).then((count) => count !== undefined && toast(`${count} settings set.`, { tone: "good" }))} />
+            <FileButton label="Import" accept=".json,application/json" on_text={(text) => void attempt(() => calls().import_settings(text)).then((result) => result && toast(`${result.changed} settings set.`, { tone: "good" }))} />
           </div>
         </SettingRow>
       </>

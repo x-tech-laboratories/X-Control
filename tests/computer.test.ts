@@ -8,7 +8,7 @@ import { Aedes } from "aedes";
 import { afterEach, describe, expect, test } from "vitest";
 
 import type { Notice } from "../src/shared/notices.ts";
-import { hidden_secret } from "../src/shared/settings.ts";
+import { hidden_secret } from "@x-tech-laboratories/x-libs/plugins";
 import { bind_store_methods, open_store } from "../src/shared/store.ts";
 import { home_assistant_settings, start_control, type Control } from "../src/server/control.ts";
 import { read_config } from "../src/server/config.ts";
@@ -122,7 +122,7 @@ describe("home assistant settings", () => {
     const row = database.prepare("SELECT value FROM settings WHERE key = 'home_assistant.password'").get() as { value: string };
     expect(JSON.parse(row.value)).toBe("broker-pass");
     // A device's link is its own, so an export leaves it out.
-    expect(JSON.parse(store.export_settings()).settings).not.toHaveProperty("home_assistant.broker");
+    expect(store.export_settings().settings).not.toHaveProperty("home_assistant.broker");
   });
 
   test("takes fields Settings leaves empty from the config file, the password from its file", () => {
