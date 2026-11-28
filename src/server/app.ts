@@ -64,7 +64,7 @@ export async function build_app(options: AppOptions): Promise<FastifyInstance> {
     cookie_name: "x_control_session",
     read_only_paths: ["/api/mcp"],
     open_paths: ["/api/sync/peer"],
-    needed: (_method, path) => (path.startsWith("/api/backup/") || path.startsWith("/api/sync_device/") ? { role: accounts.top_role } : "any"),
+    needed: (_method, path) => (path.startsWith("/api/backup/") || path.startsWith("/api/sync/") ? { role: accounts.top_role } : "any"),
   });
 
   const changes = options.changes ?? new EventStream();
@@ -108,7 +108,7 @@ export async function build_app(options: AppOptions): Promise<FastifyInstance> {
       if (sync) {
         register_sync_peer_routes(api, sync);
         // The server's own pairing calls, which an admin makes from the page's Sync section.
-        register_call_table(api, "/sync_device", sync_device_methods(sync), { is_read_only });
+        register_call_table(api, "/sync", sync_device_methods(sync), { is_read_only });
       }
       if (options.plugins_folder) register_plugin_files(api, { folder: options.plugins_folder, prefix: "/plugins", side: "web" });
     },

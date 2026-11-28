@@ -63,9 +63,9 @@ describe("the server", () => {
   test("lets paired devices reach its sync without signing in, and gives only an admin a pairing code", async () => {
     const stranger = await app.inject({ method: "POST", url: "/api/sync/peer", headers: { "content-type": "application/octet-stream", "x-sync-device": "NOBODY" }, payload: Buffer.alloc(64) });
     expect(stranger.statusCode).toBe(403);
-    expect((await app.inject({ method: "POST", url: "/api/sync_device/create_pairing_code", payload: [] })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/sync/create_pairing_code", payload: [] })).statusCode).toBe(401);
 
-    const made = await app.inject({ method: "POST", url: "/api/sync_device/create_pairing_code", headers: { cookie }, payload: [] });
+    const made = await app.inject({ method: "POST", url: "/api/sync/create_pairing_code", headers: { cookie }, payload: [] });
     const offer = decode_pairing_offer((JSON.parse(made.body) as { code: string }).code);
     expect(offer).toMatchObject({ app: "x-control", name: "X-Control server", addresses: ["https://control.example.org/api/"] });
   });
