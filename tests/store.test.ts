@@ -91,11 +91,11 @@ describe("settings", () => {
     store.set_setting("history.keep_days", 30);
     store.set_setting("notify.ping", false);
     const file = store.export_settings();
-    expect(JSON.parse(file).settings).not.toHaveProperty("notify.ping");
+    expect(file.settings).not.toHaveProperty("notify.ping");
 
     const target = fresh();
-    const edited = JSON.stringify({ ...JSON.parse(file), settings: { ...JSON.parse(file).settings, unknown_key: 1, "notify.ping": false } });
-    expect(target.store.import_settings(edited)).toBe(2);
+    const edited = JSON.stringify({ ...file, settings: { ...file.settings, unknown_key: 1, "notify.ping": false } });
+    expect(target.store.import_settings(edited)).toEqual({ changed: 1, unchanged: 0 });
     expect(target.store.get_settings()).toMatchObject({ "history.keep_days": 30, "notify.ping": true });
     expect(target.store.get_settings()).not.toHaveProperty("unknown_key");
   });

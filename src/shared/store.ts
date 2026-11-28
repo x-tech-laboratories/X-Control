@@ -11,7 +11,7 @@ import { commands_feature } from "./commands/store.ts";
 import { devices_feature } from "./devices/store.ts";
 import { command_history, history_feature, record_history } from "./history/store.ts";
 import { is_read_only } from "./page_api.ts";
-import { common_setting_defaults, hide_secret_settings, settings_feature } from "./settings.ts";
+import { settings_feature, settings_store } from "./settings.ts";
 
 // ── Features ─────────────────────────────────────────────────────────────────
 
@@ -39,16 +39,10 @@ export function open_store(database: SqlDatabase): void {
 
 // ── Calls ────────────────────────────────────────────────────────────────────
 
-function get_settings(database: SqlDatabase): Record<string, unknown> {
-  return hide_secret_settings({ ...common_setting_defaults, ...settings_feature.methods.get_settings(database) });
-}
-
 const all_methods = {
   ...settings_feature.methods,
   ...commands_feature.methods,
   ...history_feature.methods,
-  // Every setting, the ones never set at their defaults, so a page needs no list of defaults of its own; secrets hidden.
-  get_settings,
 };
 
 type Bound<Methods> = {
@@ -70,7 +64,7 @@ export function bind_store_methods(database: () => SqlDatabase, on_change: (meth
     const call = (...args: unknown[]): unknown => {
       const result = method(database(), ...args);
       if (is_read_only(name)) return result;
-      record_history(database(), Number(get_settings(database())["history.keep_days"]) || 180);
+      record_history(database(), Number(settings_store.value_of(database(), "history.keep_days")) || 180);
       on_change(name);
       return result;
     };

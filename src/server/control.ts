@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { create_plugin_host, type PluginHost, type PluginRecords, type SettingValues } from "@x-tech-laboratories/x-libs/plugins";
+import { read_setting, read_stored_settings, write_setting } from "@x-tech-laboratories/x-libs/settings";
 import type { SqlDatabase } from "@x-tech-laboratories/x-libs/sql";
 
 import type { ComputerMethods } from "../shared/computer/api.ts";
@@ -18,7 +19,7 @@ import { notice_setting, type Notice } from "../shared/notices.ts";
 import { app_info, plugins_setting } from "../shared/plugins/manifests.ts";
 import { commands_feature } from "../shared/commands/store.ts";
 import { paired_store } from "../shared/devices/store.ts";
-import { home_assistant_setting_defaults, settings_feature } from "../shared/settings.ts";
+import { home_assistant_setting_defaults } from "../shared/settings.ts";
 import { create_readings, type Readings } from "./computer/readings.ts";
 import { create_home_assistant_bridge, default_home_assistant_settings, type HomeAssistantBridge, type HomeAssistantSettings, type SessionFactory } from "./home_assistant/bridge.ts";
 import { create_device_manager, type DeviceManager } from "./kdeconnect/devices.ts";
@@ -88,7 +89,7 @@ export interface Control {
 // ── Plugins ──────────────────────────────────────────────────────────────────
 
 function plugin_records(database: SqlDatabase): PluginRecords {
-  const saved = settings_feature.methods.get_settings(database)[plugins_setting];
+  const saved = read_setting(database, plugins_setting);
   return saved && typeof saved === "object" && !Array.isArray(saved) ? (saved as PluginRecords) : {};
 }
 
@@ -131,7 +132,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
 
   // A kind of notice turned off in Settings is never shown on this device.
   const notify = (notice: Notice): void => {
-    const setting = settings_feature.methods.get_settings(options.database())[notice_setting(notice.kind)];
+    const setting = read_setting(options.database(), notice_setting(notice.kind));
     if (setting !== false) options.notify(notice);
   };
 
@@ -139,7 +140,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     app: app_info,
     storage: {
       read: () => plugin_records(options.database()),
-      write: (records) => settings_feature.methods.set_setting(options.database(), plugins_setting, records),
+      write: (records) => write_setting(options.database(), plugins_setting, records),
     },
     services: {
       system: options.system,
@@ -177,7 +178,7 @@ export async function start_control(options: ControlOptions): Promise<Control> {
     on_warning: log,
   });
 
-  const stored_settings = (): Record<string, unknown> => settings_feature.methods.get_settings(options.database());
+  const stored_settings = (): Record<string, unknown> => read_stored_settings(options.database());
   const readings = create_readings({
     sources: () => plugins.providers("entities"),
     interval: () => home_assistant_settings(stored_settings(), options.home_assistant).interval,

@@ -4,6 +4,7 @@
 // ── Imports ──────────────────────────────────────────────────────────────────
 
 import type { ApiSpec } from "@x-tech-laboratories/x-libs/api_spec";
+import type { SettingSpec } from "@x-tech-laboratories/x-libs/settings";
 import type { MigrationStep, SqlDatabase } from "@x-tech-laboratories/x-libs/sql";
 import type { SyncedTable } from "@x-tech-laboratories/x-libs/sync_engine";
 
@@ -22,8 +23,8 @@ export interface Feature<Methods extends Record<string, StoreMethod>> {
   methods: Methods;
   // What each call does and takes, for programs that reach them through MCP or the API.
   api: ApiSpec<Methods>;
-  // Settings this feature reads, by key such as "history.keep_days", with their defaults.
-  setting_defaults?: Record<string, unknown>;
+  // The settings this feature owns, by key such as "history.keep_days".
+  settings?: Record<string, SettingSpec>;
 }
 
 export function define_feature<Methods extends Record<string, StoreMethod>>(feature: Feature<Methods>): Feature<Methods> {
