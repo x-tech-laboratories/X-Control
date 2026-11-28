@@ -4,13 +4,14 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 
-import { certificate_bridge, desktop_bridge, device_bridge, control_bridge, control_events, local_mcp_bridge } from "../shared/bridge.ts";
+import { certificate_bridge, desktop_bridge, device_bridge, control_bridge, control_events, listening_bridge, local_mcp_bridge } from "../shared/bridge.ts";
 
 // ── Bridge ───────────────────────────────────────────────────────────────────
 
 control_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
 device_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
 certificate_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
+listening_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
 local_mcp_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
 desktop_bridge.expose(contextBridge, ipcRenderer, { envelopes: true });
 control_events.expose(contextBridge, ipcRenderer);

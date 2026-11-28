@@ -24,6 +24,7 @@ let
     };
     database = "${state_directory}/control.db";
     backups_folder = "${state_directory}/backups";
+    sync_address = cfg.syncAddress;
     device_name = cfg.deviceName;
     kdeconnect = {
       discovery = cfg.discovery;
@@ -70,6 +71,13 @@ in
       type = types.bool;
       default = false;
       description = "Open the page's port, and KDE Connect's ports (UDP and TCP 1716 to 1764), in the firewall.";
+    };
+
+    syncAddress = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "https://control.example.org/api/";
+      description = "Where paired daemons reach this server's sync, through its reverse proxy; without it the server only reaches out to daemons that let others connect.";
     };
 
     deviceName = mkOption {

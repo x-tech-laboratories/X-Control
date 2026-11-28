@@ -13,7 +13,7 @@ import { confirm_dialog } from "@x-tech-laboratories/x-libs/web/react/dialog";
 import { LocalMcpSettings } from "@x-tech-laboratories/x-libs/web/react/local_mcp_settings";
 import { PageHeading, SettingRow, SettingsPage, type SettingsCategory, type SettingsSection } from "@x-tech-laboratories/x-libs/web/react/layout";
 import { Loaded } from "@x-tech-laboratories/x-libs/web/react/states";
-import { SyncSettings } from "@x-tech-laboratories/x-libs/web/react/sync_settings";
+import { PeerListeningSettings, SyncSettings } from "@x-tech-laboratories/x-libs/web/react/sync_settings";
 import { toast } from "@x-tech-laboratories/x-libs/web/react/toasts";
 
 import type { DesktopSettings } from "../../shared/desktop.ts";
@@ -198,15 +198,16 @@ function Desktop() {
 }
 
 function host_category(): SettingsCategory[] {
-  const { device, backups, certificates, local_mcp, desktop, connections } = page();
+  const { device, server_sync, backups, certificates, listening, local_mcp, desktop, connections } = page();
   const sections: SettingsSection[] = [
     ...(connections ? [{ id: "connections", heading: "Connections", hint: "The X-Control daemons this phone controls devices through.", content: <ConnectionSettings client={connections} certificates={certificates} placeholder="https://control.example.org/" /> }] : []),
     ...(device
-      ? [{ id: "sync", heading: "Sync", hint: "Keep run commands and settings alike with your X-Control server.", content: <>
-          <SyncSettings device={device} certificates={certificates} subscribe={data_watch.subscribe} data_name="X-Control data" placeholder="https://control.example.org/" />
+      ? [{ id: "sync", heading: "Sync", hint: "Keep run commands and settings alike with your other X-Control daemons.", content: <>
+          <SyncSettings device={device} subscribe={data_watch.subscribe} data_name="X-Control data" extra={listening && <PeerListeningSettings listening={listening} />} />
           {certificates && <TrustedCertificates certificates={certificates} />}
         </> }]
       : []),
+    ...(server_sync && !connections ? [{ id: "sync", heading: "Sync", hint: "Keep the server's run commands and settings alike with your other daemons. Only an admin may pair or remove a device.", content: <SyncSettings device={server_sync} subscribe={data_watch.subscribe} data_name="X-Control data" /> }] : []),
     ...(backups ? [{ id: "backups", heading: "Backups", hint: device ? "Copies of this device's data, kept beside it." : "Copies of the daemon's data. A restore restarts the server.", content: <BackupSettings device={backups} data_name="X-Control data" on_restored={() => data_watch.bump()} /> }] : []),
     ...(local_mcp ? [{ id: "mcp", heading: "MCP server", hint: "Let AI assistants on this computer reach your devices.", content: <LocalMcpSettings device={local_mcp} name="x-control" data_name="see and control your paired devices" /> }] : []),
     ...(desktop ? [{ id: "desktop", heading: "Desktop", hint: "The tray icon, and what runs while the window is closed.", content: <Desktop /> }] : []),

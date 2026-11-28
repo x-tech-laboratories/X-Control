@@ -20,8 +20,9 @@ import { register_call_table } from "@x-tech-laboratories/x-libs/server/call_tab
 import { EventStream } from "@x-tech-laboratories/x-libs/server/events";
 import { register_error_replies, register_lenient_json_body } from "@x-tech-laboratories/x-libs/server/replies";
 import { sqlite_backups } from "@x-tech-laboratories/x-libs/server/sqlite_backups";
-import { create_sync_client, sync_device_methods } from "@x-tech-laboratories/x-libs/sync_client";
 import { file_sync_storage } from "@x-tech-laboratories/x-libs/sync_file_storage";
+import { create_sync_peer, sync_device_methods } from "@x-tech-laboratories/x-libs/sync_peer";
+import { keep_listening_for_peers } from "@x-tech-laboratories/x-libs/sync_peer_listening";
 
 import { control_backup_naming, read_schedule } from "../shared/backups.ts";
 import { control_api } from "../shared/bridge.ts";
@@ -104,15 +105,19 @@ const backing_up = keep_backing_up(kept, read_backup_schedule);
 
 // ── Sync ─────────────────────────────────────────────────────────────────────
 
-// Server certificates the user trusted, such as a home server's self-signed one, handed to Node's own fetch.
+// Certificates the user trusted for a paired device's https address, such as a home server's self-signed one, handed to Node's own fetch.
 const certificates = create_certificate_trust({ file: join(profile, "trusted-certificates.json"), use_in_node: true });
 
-const sync = create_sync_client({
+// "Let other devices connect", off until the user turns it on, so paired daemons can reach this computer without a server.
+const listening = keep_listening_for_peers({ peer: () => sync, app: "x-control", file: join(profile, "sync-listening.json"), default_port: 3933 });
+
+const sync = create_sync_peer({
+  app: "x-control",
   engine: sync_engine,
   database: () => database,
-  storage: file_sync_storage({ file: join(profile, "sync.json"), back_up_before_download: async () => void (await kept.create()) }),
-  data_name: "X-Control data",
+  storage: file_sync_storage({ file: join(profile, "sync-peers.json"), back_up_before_replace: async () => void (await kept.create()) }),
   device_name: `X-Control on ${hostname()}`,
+  addresses: () => listening.addresses(),
   on_remote_change: announce_change,
   on_status: (status) => changes.send(JSON.stringify(status), { event: "sync_status" }),
 });
@@ -165,9 +170,8 @@ function device_methods(): SyncAndBackupMethods {
     ...sync_device_methods(sync),
     list_backups: kept.list,
     create_backup: () => kept.create(),
-    // The restored data no longer matches the server's, so sync waits until the user picks which copy wins.
+    // The restored copy then reaches every paired device, which backs itself up first.
     restore_backup: async (name) => {
-      sync.disconnect();
       await kept.restore(name);
     },
     remove_backup: kept.remove,
@@ -200,6 +204,7 @@ async function build_daemon(shut_down: () => void): Promise<FastifyInstance> {
       register_control_calls(api, () => database, control, changes);
       register_call_table(api, "/device", device_methods(), { is_read_only, on_change: tell_others });
       register_call_table(api, "/certificates", certificates.methods, { is_read_only });
+      register_call_table(api, "/listening", listening.methods, { is_read_only });
       register_call_table(api, "/local_mcp", local_mcp.methods, { is_read_only });
       register_call_table(api, "/daemon", daemon_methods(shut_down), { is_read_only, on_change: tell_others });
     },
@@ -220,6 +225,7 @@ async function main(): Promise<void> {
     is_stopping = true;
     clearInterval(unused_timer);
     sync.stop();
+    void listening.stop();
     backing_up.stop();
     void control
       .stop()
@@ -243,6 +249,7 @@ async function main(): Promise<void> {
   }
   console.log(`x-control daemon on ${socket_path}, using ${database_path}`);
 
+  await listening.start();
   sync.start();
   void local_mcp.start();
 
