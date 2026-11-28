@@ -24,12 +24,12 @@ on Android in Capacitor. Read `README.md` first, then `docs/architecture.md`. It
   computer and go to Home Assistant over MQTT; its reads go through `SystemServices.readings`, `power` or `units`.
 - The System Bridge server in `src/server/system_bridge/` must stay as Home Assistant's integration reads it: frames
   with only `id`, `type`, `subtype`, `data`, `message` and `module`, and no module answered with null. See `docs/architecture.md`.
-- Plugins reach the computer only through `SystemServices`; the Linux side runs programs through X-Libs, and only the run commands the user wrote go through a shell.
+- Plugins reach the computer only through `SystemServices`; the Linux side runs programs through X-App, and only the run commands the user wrote go through a shell.
 - Code in `src/shared/` runs in the daemon and in the page: no DOM, no `node:` imports.
 - A call that only reads is named `list_`, `get_`, `search_`, `lookup_` or `export_`; any other name announces a change.
 - Every call has a spec saying what it does and its arguments, so the API and MCP offer it too.
 - A released migration step is never edited; change `schema.ts` and run `npm run db:generate`.
-- Use X-Libs widgets and Halon classes; `app.css` holds layout only and never a colour. A widget two apps could use goes into X-Libs.
+- Use X-App widgets and Halon classes; `app.css` holds layout only and never a colour. A widget two apps could use goes into X-App.
 - Tests use a throwaway database and temp folders, never `dev-data/` or a real profile.
 - Comments are one plain line saying what the code does now; names are snake_case, components PascalCase.
 - Commit messages follow Conventional Commits and end with an `Assisted-by:` trailer naming the tool.
